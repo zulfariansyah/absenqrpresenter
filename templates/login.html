@@ -152,7 +152,7 @@
                 const data = await res.json();
 
                 if (res.ok && data.success) {
-                    window.location.reload();
+                    window.location.href = `${window.BASE_URL}/consolepresenter`;
                 } else {
                     Swal.fire({
                         icon: 'error',

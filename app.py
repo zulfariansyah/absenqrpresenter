@@ -122,8 +122,8 @@ def index():
     """Halaman Pendaftaran Seminar (Publik Peserta)"""
     return render_template('register.html')
 
-@app.route('/console')
 @app.route('/consolepresenter')
+@app.route('/console')
 def console():
     """Halaman Console Admin (menampilkan Form Login jika belum login, atau Dashboard jika sudah login)"""
     if not session.get('admin_logged_in'):
@@ -132,12 +132,12 @@ def console():
 
 @app.route('/admin')
 def admin():
-    """Redirect /admin ke /console"""
+    """Redirect /admin ke /consolepresenter"""
     return redirect(url_for('console'))
 
 @app.route('/login')
 def login():
-    """Redirect /login ke /console"""
+    """Redirect /login ke /consolepresenter"""
     return redirect(url_for('console'))
 
 @app.route('/ticket/<qr_code>')
