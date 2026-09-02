@@ -1130,17 +1130,17 @@ def import_csv():
         return jsonify({'success': False, 'message': f'Gagal memproses file CSV: {str(e)}'}), 500
 
 if __name__ == '__main__':
-    ACTIVE_PORT = find_available_port(start_port=5001)
+    ACTIVE_PORT = int(os.environ.get('PORT', 5001))
     local_ip = get_local_ip()
     
     print("\n" + "="*65)
-    print("🚀 SISTEM ABSEN SEMINAR AKTIF & TERKONEKSI KE JARINGAN LOKAL")
+    print("🚀 SISTEM ABSEN PRESENTER AKTIF & TERKONEKSI (PORT 5001)")
     print("="*65)
-    print(f"📍 Akses Publik (Pendaftar):")
+    print(f"📍 Akses Publik (Pendaftar Presenter):")
     print(f"   • Form Pendaftaran : http://127.0.0.1:{ACTIVE_PORT}")
     print(f"   • Via Wi-Fi/HP     : http://{local_ip}:{ACTIVE_PORT}")
-    print(f"\n🔐 Akses Khusus Panitia (Admin Console):")
-    print(f"   • Login Console    : http://127.0.0.1:{ACTIVE_PORT}/console")
-    print(f"   • Via Wi-Fi/HP     : http://{local_ip}:{ACTIVE_PORT}/console")
+    print(f"\n🔐 Akses Khusus Admin Presenter:")
+    print(f"   • Login Admin      : http://127.0.0.1:{ACTIVE_PORT}/admin")
+    print(f"   • Via Wi-Fi/HP     : http://{local_ip}:{ACTIVE_PORT}/admin")
     print("="*65 + "\n")
     app.run(host='0.0.0.0', port=ACTIVE_PORT, debug=False)
