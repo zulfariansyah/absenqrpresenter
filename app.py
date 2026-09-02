@@ -3,7 +3,7 @@ import io
 import csv
 from datetime import datetime
 from functools import wraps
-from flask import Flask, render_template, request, jsonify, send_file, Response, session, redirect, url_for
+from flask import Flask, render_template, request, jsonify, send_file, Response, session, redirect, url_for, send_from_directory
 import qrcode
 from qrcode.image.pil import PilImage
 
@@ -102,6 +102,14 @@ def inject_settings():
     """Menyediakan variabel global pengaturan acara, IP lokal, dan status login ke seluruh template"""
     global ACTIVE_PORT
     settings = database.get_all_settings()
+    logo = settings.get('event_logo', '')
+    if logo and not logo.startswith('http') and not logo.startswith('data:'):
+        if not logo.startswith('/absenpresenter'):
+            if logo.startswith('/static/'):
+                settings['event_logo'] = f"/absenpresenter{logo}"
+            else:
+                settings['event_logo'] = f"/absenpresenter/static/uploads/{logo.lstrip('/')}"
+
     local_ip = get_local_ip()
     port = ACTIVE_PORT
     return {
@@ -116,6 +124,12 @@ def inject_settings():
         'admin_role': session.get('admin_role', 'admin'),
         'is_superadmin': session.get('admin_role') == 'superadmin'
     }
+
+@app.route('/absenpresenter/static/<path:filename>')
+@app.route('/staticpresenter/<path:filename>')
+def custom_static(filename):
+    """Melayani file static jika diakses langsung dengan prefix /absenpresenter/static/"""
+    return send_from_directory(os.path.join(app.root_path, 'static'), filename)
 
 @app.route('/absenpresenter')
 @app.route('/')
@@ -566,6 +580,12 @@ def api_bulk_delete_participants():
 def api_get_settings():
     """Mengambil data pengaturan nama acara & logo saat ini"""
     settings = database.get_all_settings()
+    logo = settings.get('event_logo', '')
+    if logo and not logo.startswith('http') and not logo.startswith('data:') and not logo.startswith('/absenpresenter'):
+        if logo.startswith('/static/'):
+            settings['event_logo'] = f"/absenpresenter{logo}"
+        else:
+            settings['event_logo'] = f"/absenpresenter/static/uploads/{logo.lstrip('/')}"
     return jsonify({
         'success': True,
         'settings': settings
@@ -596,10 +616,17 @@ def api_update_settings():
             file.save(file_path)
             
             # Simpan relative URL
-            logo_url = f"/static/uploads/{filename}"
+            logo_url = f"/absenpresenter/static/uploads/{filename}"
             database.set_setting('event_logo', logo_url)
 
     updated_settings = database.get_all_settings()
+    logo = updated_settings.get('event_logo', '')
+    if logo and not logo.startswith('http') and not logo.startswith('data:') and not logo.startswith('/absenpresenter'):
+        if logo.startswith('/static/'):
+            updated_settings['event_logo'] = f"/absenpresenter{logo}"
+        else:
+            updated_settings['event_logo'] = f"/absenpresenter/static/uploads/{logo.lstrip('/')}"
+
     return jsonify({
         'success': True,
         'message': 'Pengaturan acara berhasil disimpan!',
