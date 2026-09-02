@@ -87,7 +87,11 @@
         }
     </style>
     <script>
+        {% if request.script_root %}
         window.BASE_URL = "{{ request.script_root }}";
+        {% else %}
+        window.BASE_URL = window.location.pathname.includes('presenter') ? '/absenpresenter' : '';
+        {% endif %}
     </script>
 </head>
 <body class="min-h-screen flex flex-col text-slate-800 antialiased bg-slate-50">
@@ -1870,9 +1874,28 @@
                 if (json.success && json.data) {
                     currentParticipantsList = json.data;
                     renderParticipantsTable();
+                } else {
+                    tableBody.innerHTML = `
+                        <tr>
+                            <td colspan="11" class="text-center py-10 text-rose-500 font-medium">
+                                <i data-lucide="alert-circle" class="w-6 h-6 mx-auto mb-2 text-rose-500"></i>
+                                Gagal memuat data: ${json.message || 'Respons server tidak valid'}
+                            </td>
+                        </tr>
+                    `;
+                    lucide.createIcons();
                 }
             } catch (e) {
                 console.error(e);
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="11" class="text-center py-10 text-rose-500 font-medium">
+                            <i data-lucide="wifi-off" class="w-6 h-6 mx-auto mb-2 text-rose-500"></i>
+                            Gagal menghubungi server database. Periksa rute API proxy.
+                        </td>
+                    </tr>
+                `;
+                lucide.createIcons();
             }
         }
 
@@ -2218,9 +2241,28 @@
 
                     currentPresentationsList = json.data;
                     renderPresentationsTable();
+                } else {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="text-center py-10 text-rose-500 font-medium">
+                                <i data-lucide="alert-circle" class="w-6 h-6 mx-auto mb-2 text-rose-500"></i>
+                                Gagal memuat data judul: ${json.message || 'Respons server tidak valid'}
+                            </td>
+                        </tr>
+                    `;
+                    lucide.createIcons();
                 }
             } catch (e) {
                 console.error('Error loading presentations admin', e);
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center py-10 text-rose-500 font-medium">
+                            <i data-lucide="wifi-off" class="w-6 h-6 mx-auto mb-2 text-rose-500"></i>
+                            Gagal menghubungi server data judul.
+                        </td>
+                    </tr>
+                `;
+                lucide.createIcons();
             }
         }
 
