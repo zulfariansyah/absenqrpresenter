@@ -123,6 +123,7 @@ def index():
     return render_template('register.html')
 
 @app.route('/consolepresenter')
+@app.route('/absenpresenter/consolepresenter')
 @app.route('/console')
 def console():
     """Halaman Console Admin (menampilkan Form Login jika belum login, atau Dashboard jika sudah login)"""
