@@ -156,7 +156,7 @@
                 const data = await res.json();
 
                 if (res.ok && data.success) {
-                    window.location.href = `${window.BASE_URL}/consolepresenter`;
+                    window.location.reload();
                 } else {
                     Swal.fire({
                         icon: 'error',

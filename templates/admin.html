@@ -3097,7 +3097,7 @@
 
             if (confirm.isConfirmed) {
                 await fetch(`${window.BASE_URL}/api/logout`, { method: 'POST' });
-                window.location.href = `${window.BASE_URL}/consolepresenter`;
+                window.location.reload();
             }
         }
 
