@@ -55,10 +55,14 @@ class SeminarAttendanceSystemTestCase(unittest.TestCase):
         self.assertEqual(res_admin.status_code, 200)
         self.assertTrue('Masuk ke Panel Admin' in res_admin.data.decode('utf-8'))
 
-        # Tanpa login -> akses /console juga menampilkan form login (status 200)
-        res_console = self.app.get('/console')
-        self.assertEqual(res_console.status_code, 200)
-        self.assertTrue('Masuk ke Panel Admin' in res_console.data.decode('utf-8'))
+        # Tanpa login -> akses /adminpresenter & /absenpresenter/admin juga menampilkan form login (status 200)
+        res_apres = self.app.get('/adminpresenter')
+        self.assertEqual(res_apres.status_code, 200)
+        self.assertTrue('Masuk ke Panel Admin' in res_apres.data.decode('utf-8'))
+
+        res_absen_admin = self.app.get('/absenpresenter/admin')
+        self.assertEqual(res_absen_admin.status_code, 200)
+        self.assertTrue('Masuk ke Panel Admin' in res_absen_admin.data.decode('utf-8'))
 
         # Tanpa login -> akses API dilindungi status 401
         res_api = self.app.get('/api/participants')

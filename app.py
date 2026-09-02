@@ -123,10 +123,6 @@ def index():
     """Halaman Pendaftaran Seminar (Publik Peserta)"""
     return render_template('register.html')
 
-@app.route('/absenpresenter/consolepresenter')
-@app.route('/absenpresenter/console')
-@app.route('/consolepresenter')
-@app.route('/console')
 @app.route('/absenpresenter/admin')
 @app.route('/adminpresenter')
 @app.route('/admin')
@@ -135,9 +131,6 @@ def admin():
     if not session.get('admin_logged_in') and not session.get('presenter_admin_logged_in'):
         return render_template('login.html')
     return render_template('admin.html')
-
-# Alias endpoint console untuk backward-compatibility
-console = admin
 
 @app.route('/login')
 def login():
