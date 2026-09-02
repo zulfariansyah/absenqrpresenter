@@ -49,15 +49,16 @@ class SeminarAttendanceSystemTestCase(unittest.TestCase):
         self.assertIsNone(p['attended_at'])
 
     def test_03_auth_protection_and_login(self):
-        """Uji proteksi route console/admin dan proses login/logout"""
-        # Tanpa login -> akses /admin diarahkan ke /console (status 302)
+        """Uji proteksi route admin dan proses login/logout"""
+        # Tanpa login -> akses /admin menampilkan form login (status 200)
         res_admin = self.app.get('/admin')
-        self.assertEqual(res_admin.status_code, 302)
+        self.assertEqual(res_admin.status_code, 200)
+        self.assertTrue('Masuk ke Panel Admin' in res_admin.data.decode('utf-8'))
 
-        # Tanpa login -> akses /console menampilkan form login (status 200)
+        # Tanpa login -> akses /console juga menampilkan form login (status 200)
         res_console = self.app.get('/console')
         self.assertEqual(res_console.status_code, 200)
-        self.assertTrue('Masuk ke Console' in res_console.data.decode('utf-8'))
+        self.assertTrue('Masuk ke Panel Admin' in res_console.data.decode('utf-8'))
 
         # Tanpa login -> akses API dilindungi status 401
         res_api = self.app.get('/api/participants')
@@ -72,10 +73,10 @@ class SeminarAttendanceSystemTestCase(unittest.TestCase):
         self.assertEqual(good_login.status_code, 200)
         self.assertTrue(json.loads(good_login.data)['success'])
 
-        # Sekarang akses /console menampilkan Dashboard Console Admin
-        auth_console = self.app.get('/console')
-        self.assertEqual(auth_console.status_code, 200)
-        self.assertTrue('Console Absensi Presenter' in auth_console.data.decode('utf-8'))
+        # Sekarang akses /admin menampilkan Dashboard Admin
+        auth_admin = self.app.get('/admin')
+        self.assertEqual(auth_admin.status_code, 200)
+        self.assertTrue('Sistem Absensi Presenter' in auth_admin.data.decode('utf-8'))
 
         # Logout
         self.app.post('/api/logout')
@@ -408,10 +409,10 @@ class SeminarAttendanceSystemTestCase(unittest.TestCase):
         self.assertIn('window.BASE_URL = "/absen"', html)
         self.assertTrue('href="/absen"' in html or 'href="/absen/"' in html)
 
-        # 2. Redirect tanpa login ke /admin harus mengarahkan ke /absen/console atau /absen/consolepresenter
-        res_admin = self.app.get('/admin', headers=headers)
-        self.assertEqual(res_admin.status_code, 302)
-        self.assertIn('/absen/console', res_admin.location)
+        # 2. Redirect /login harus mengarahkan ke /absen/admin
+        res_login = self.app.get('/login', headers=headers)
+        self.assertEqual(res_login.status_code, 302)
+        self.assertIn('/absen/admin', res_login.location)
 
         # 3. Endpoint network-info harus mengenali prefix publik
         res_net = self.app.get('/api/network-info', headers=headers)

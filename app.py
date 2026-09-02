@@ -79,10 +79,10 @@ def admin_required(f):
     """Decorator untuk membatasi akses khusus sesi admin yang valid"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not session.get('admin_logged_in'):
-            if request.path.startswith('/api/'):
+        if not session.get('admin_logged_in') and not session.get('presenter_admin_logged_in'):
+            if request.path.startswith('/api/') or request.path.startswith('/apipresenter/') or request.path.startswith('/absenpresenter/api/'):
                 return jsonify({'success': False, 'message': 'Akses ditolak. Silakan login terlebih dahulu.'}), 401
-            return redirect(url_for('console'))
+            return redirect(url_for('admin'))
         return f(*args, **kwargs)
     return decorated_function
 
@@ -90,7 +90,7 @@ def superadmin_required(f):
     """Decorator untuk membatasi akses khusus sesi Super Admin"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not session.get('admin_logged_in'):
+        if not session.get('admin_logged_in') and not session.get('presenter_admin_logged_in'):
             return jsonify({'success': False, 'message': 'Akses ditolak. Silakan login terlebih dahulu.'}), 401
         if session.get('admin_role') != 'superadmin':
             return jsonify({'success': False, 'message': 'Akses ditolak. Fitur ini hanya untuk Super Admin.'}), 403
@@ -109,7 +109,7 @@ def inject_settings():
         'local_ip': local_ip,
         'server_port': port,
         'local_url': f"http://{local_ip}:{port}",
-        'is_admin': session.get('admin_logged_in', False),
+        'is_admin': session.get('admin_logged_in', False) or session.get('presenter_admin_logged_in', False),
         'admin_id': session.get('admin_id'),
         'admin_username': session.get('admin_username', 'admin'),
         'admin_name': session.get('admin_name', 'Super Admin'),
@@ -125,23 +125,24 @@ def index():
 
 @app.route('/absenpresenter/consolepresenter')
 @app.route('/absenpresenter/console')
-@app.route('/console')
 @app.route('/consolepresenter')
-def console():
-    """Halaman Console Admin (menampilkan Form Login jika belum login, atau Dashboard jika sudah login)"""
-    if not session.get('admin_logged_in'):
+@app.route('/console')
+@app.route('/absenpresenter/admin')
+@app.route('/adminpresenter')
+@app.route('/admin')
+def admin():
+    """Halaman Dashboard Admin Presenter (menampilkan Form Login jika belum login, atau Dashboard jika sudah login)"""
+    if not session.get('admin_logged_in') and not session.get('presenter_admin_logged_in'):
         return render_template('login.html')
     return render_template('admin.html')
 
-@app.route('/admin', strict_slashes=False)
-def admin():
-    """Redirect /admin ke /consolepresenter"""
-    return redirect(url_for('console'))
+# Alias endpoint console untuk backward-compatibility
+console = admin
 
 @app.route('/login')
 def login():
-    """Redirect /login ke /consolepresenter"""
-    return redirect(url_for('console'))
+    """Redirect /login ke /admin"""
+    return redirect(url_for('admin'))
 
 @app.route('/absenpresenter/ticket/<qr_code>')
 @app.route('/ticketpresenter/<qr_code>')
@@ -206,10 +207,10 @@ def api_login():
 
 @presenter_route('/api/logout', methods=['POST', 'GET'])
 def api_logout():
-    """Keluar dari sesi admin console"""
+    """Keluar dari sesi admin presenter"""
     session.clear()
     if request.method == 'GET':
-        return redirect(url_for('console'))
+        return redirect(url_for('admin'))
     return jsonify({'success': True, 'message': 'Logout berhasil.'})
 
 @presenter_route('/api/admin/change-credentials', methods=['POST'])
@@ -642,8 +643,8 @@ def api_network_info():
         'prefix': prefix,
         'register_url_local': base_local,
         'register_url_lan': public_base if is_behind_domain else base_lan,
-        'admin_url_local': f"{base_local}/console",
-        'admin_url_lan': f"{public_base}/console" if is_behind_domain else f"{base_lan}/console",
+        'admin_url_local': f"{base_local}/admin",
+        'admin_url_lan': f"{public_base}/admin" if is_behind_domain else f"{base_lan}/admin",
     })
 
 @presenter_route('/api/qr-url.png')
