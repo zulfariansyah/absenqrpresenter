@@ -18,8 +18,8 @@ test_*.db*
 # OS generated files
 .DS_Store
 .DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
+# Temporary and data files
+*.csv
+*.tsv
+backup_*.csv
+temp_*.js

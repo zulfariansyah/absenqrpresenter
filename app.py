@@ -27,12 +27,37 @@ ACTIVE_PORT = 5001
 def get_local_ip():
     """Mendeteksi IP Address lokal di jaringan LAN / Wi-Fi"""
     import socket
+    import subprocess
+    # Coba koneksi UDP standar
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
             s.connect(('8.8.8.8', 80))
-            return s.getsockname()[0]
+            ip = s.getsockname()[0]
+            if ip and not ip.startswith('127.'):
+                return ip
     except Exception:
-        return '127.0.0.1'
+        pass
+
+    # Fallback macOS Wi-Fi / Ethernet interface (en0, en1, en2)
+    for iface in ['en0', 'en1', 'en2', 'eth0', 'wlan0']:
+        try:
+            res = subprocess.run(['ipconfig', 'getifaddr', iface], capture_output=True, text=True, timeout=1)
+            ip = res.stdout.strip()
+            if ip and not ip.startswith('127.'):
+                return ip
+        except Exception:
+            pass
+
+    # Fallback hostname lookup
+    try:
+        host_ips = socket.gethostbyname_ex(socket.gethostname())[2]
+        for ip in host_ips:
+            if not ip.startswith('127.'):
+                return ip
+    except Exception:
+        pass
+
+    return '127.0.0.1'
 
 def find_available_port(start_port=5001, max_tries=20):
     """Mencari port bebas secara otomatis jika port default sedang digunakan program lain"""
@@ -293,9 +318,15 @@ def is_rate_limited(ip_address, max_requests=5, window_seconds=60):
     registration_history[ip_address] = valid_timestamps
     return False
 
+@app.route('/api/presentations/public', methods=['GET'])
+def api_presentations_public():
+    """Mengambil daftar judul presentasi untuk form registrasi publik (dengan flag is_taken)"""
+    items = database.get_available_presentations()
+    return jsonify({'success': True, 'data': items})
+
 @app.route('/api/register', methods=['POST'])
 def api_register():
-    """Menerima pendaftaran peserta baru dengan proteksi Rate Limit, Anti-Bot Honeypot, XSS Sanitization, dan Cek Duplikasi"""
+    """Menerima pendaftaran presenter baru dengan pemilihan judul presentasi & ruangan"""
     data = request.get_json() or {}
     
     # 1. Anti-Bot Honeypot: Jika field bot terisi, tolak langsung
@@ -318,6 +349,7 @@ def api_register():
     raw_no_hp = data.get('no_hp', '').strip()
     raw_institusi = data.get('institusi', '').strip()
     raw_pekerjaan = data.get('pekerjaan', '').strip()
+    raw_pres_id = data.get('presentation_id')
     
     # 3. Validasi Keberadaan Input
     if not raw_nim or not raw_nama or not raw_no_hp or not raw_institusi or not raw_pekerjaan:
@@ -325,6 +357,28 @@ def api_register():
             'success': False,
             'message': 'Semua kolom formulir (No. Identitas, Nama Lengkap, No. HP / WhatsApp, Institusi, Pekerjaan) wajib diisi!'
         }), 400
+        
+    presentation_id = None
+    all_db_presentations = database.get_all_presentations()
+    if all_db_presentations:
+        if not raw_pres_id:
+            return jsonify({
+                'success': False,
+                'message': 'Silakan pilih Judul Presentasi yang akan Anda bawakan!'
+            }), 400
+        try:
+            presentation_id = int(raw_pres_id)
+        except (ValueError, TypeError):
+            return jsonify({
+                'success': False,
+                'message': 'Pilihan judul presentasi tidak valid!'
+            }), 400
+    else:
+        if raw_pres_id:
+            try:
+                presentation_id = int(raw_pres_id)
+            except (ValueError, TypeError):
+                pass
         
     # 4. Validasi Panjang Karakter (Mencegah Buffer/Payload Abuse)
     if len(raw_nim) < 3 or len(raw_nim) > 30:
@@ -376,16 +430,28 @@ def api_register():
         }), 400
         
     try:
-        participant = database.register_participant(nim_nip, nama_lengkap, no_hp, institusi, pekerjaan)
+        participant = database.register_participant(
+            nim_nip=nim_nip,
+            nama_lengkap=nama_lengkap,
+            no_hp=no_hp,
+            institusi=institusi,
+            pekerjaan=pekerjaan,
+            presentation_id=presentation_id
+        )
         return jsonify({
             'success': True,
-            'message': 'Pendaftaran berhasil!',
+            'message': 'Pendaftaran presenter berhasil!',
             'data': participant
         })
+    except ValueError as ve:
+        return jsonify({
+            'success': False,
+            'message': str(ve)
+        }), 400
     except Exception as e:
         return jsonify({
             'success': False,
-            'message': f'Gagal mendaftarkan peserta: {str(e)}'
+            'message': f'Gagal mendaftarkan presenter: {str(e)}'
         }), 500
 
 @app.route('/api/scan', methods=['POST'])
@@ -411,12 +477,13 @@ def api_scan():
 @app.route('/api/participants', methods=['GET'])
 @admin_required
 def api_participants():
-    """Mengambil data peserta berdasarkan status (pendaftar/peserta), pencarian, dan pekerjaan"""
+    """Mengambil data peserta berdasarkan status (pendaftar/peserta), pencarian, pekerjaan, dan ruangan"""
     status = request.args.get('status')
     search = request.args.get('search')
     pekerjaan = request.args.get('pekerjaan')
+    ruangan = request.args.get('ruangan')
     
-    rows = database.get_participants(status=status, search=search, pekerjaan=pekerjaan)
+    rows = database.get_participants(status=status, search=search, pekerjaan=pekerjaan, ruangan=ruangan)
     return jsonify({
         'success': True,
         'count': len(rows),
@@ -426,7 +493,7 @@ def api_participants():
 @app.route('/api/stats', methods=['GET'])
 @admin_required
 def api_stats():
-    """Mengambil data statistik jumlah pendaftar, peserta hadir, dan persentase"""
+    """Mengambil data statistik jumlah pendaftar, peserta hadir, judul presentasi, dan persentase"""
     stats = database.get_stats()
     return jsonify({
         'success': True,
@@ -458,6 +525,22 @@ def api_delete_participant(participant_id):
     return jsonify({
         'success': True,
         'message': 'Data berhasil dihapus.'
+    })
+
+@app.route('/api/participants/bulk-delete', methods=['POST'])
+@admin_required
+def api_bulk_delete_participants():
+    """Menghapus beberapa data presenter sekaligus berdasarkan daftar ID terpilih"""
+    data = request.get_json() or {}
+    ids = data.get('ids', [])
+    if not ids or not isinstance(ids, list):
+        return jsonify({'success': False, 'message': 'Pilih minimal 1 data presenter untuk dihapus.'}), 400
+    
+    count = database.delete_participants_bulk(ids)
+    return jsonify({
+        'success': True,
+        'message': f'{count} data presenter berhasil dihapus.',
+        'count': count
     })
 
 @app.route('/api/settings', methods=['GET'])
@@ -589,22 +672,227 @@ def api_qr_image(qr_code):
         buffer,
         mimetype='image/png',
         as_attachment=False,
-        download_name=f"QR_{qr_code}.png"
+        download_name=f"qr_presenter_semnasretro_{qr_code.lower()}.png"
     )
+
+# ======================= PRESENTATIONS (JUDUL & RUANGAN) ADMIN ENDPOINTS =======================
+
+@app.route('/api/admin/presentations', methods=['GET'])
+@admin_required
+def api_get_presentations():
+    """Mengambil seluruh data judul presentasi, daftar ruangan, dan statistik"""
+    search = request.args.get('search')
+    ruangan = request.args.get('ruangan')
+    items = database.get_all_presentations(search=search, ruangan=ruangan)
+    ruangan_list = database.get_distinct_ruangan()
+    stats = database.get_presentation_stats()
+    return jsonify({
+        'success': True,
+        'data': items,
+        'ruangan_list': ruangan_list,
+        'stats': stats
+    })
+
+@app.route('/api/admin/presentations', methods=['POST'])
+@admin_required
+def api_add_presentation():
+    """Menambahkan judul presentasi baru secara manual"""
+    data = request.get_json() or {}
+    judul = data.get('judul', '').strip()
+    ruangan = data.get('ruangan', '-').strip()
+    if not judul:
+        return jsonify({'success': False, 'message': 'Judul presentasi wajib diisi!'}), 400
+        
+    pres = database.add_presentation(judul, ruangan)
+    return jsonify({
+        'success': True,
+        'message': 'Judul presentasi berhasil ditambahkan!',
+        'data': pres
+    })
+
+@app.route('/api/admin/presentations/<int:pres_id>', methods=['PUT', 'POST'])
+@admin_required
+def api_update_presentation(pres_id):
+    """Mengubah data judul presentasi dan ruangan"""
+    data = request.get_json() or {}
+    judul = data.get('judul', '').strip()
+    ruangan = data.get('ruangan', '-').strip()
+    if not judul:
+        return jsonify({'success': False, 'message': 'Judul presentasi wajib diisi!'}), 400
+        
+    success = database.update_presentation(pres_id, judul, ruangan)
+    if success:
+        return jsonify({'success': True, 'message': 'Judul presentasi berhasil diperbarui!'})
+    return jsonify({'success': False, 'message': 'Judul presentasi tidak ditemukan atau gagal diperbarui.'}), 404
+
+@app.route('/api/admin/presentations/<int:pres_id>', methods=['DELETE'])
+@admin_required
+def api_delete_presentation(pres_id):
+    """Menghapus 1 judul presentasi"""
+    success = database.delete_presentation(pres_id)
+    if success:
+        return jsonify({'success': True, 'message': 'Judul presentasi berhasil dihapus.'})
+    return jsonify({'success': False, 'message': 'Judul presentasi tidak ditemukan.'}), 404
+
+@app.route('/api/admin/presentations/reset', methods=['POST'])
+@admin_required
+def api_reset_presentations():
+    """Menghapus seluruh daftar judul presentasi"""
+    count = database.delete_all_presentations()
+    return jsonify({'success': True, 'message': f'Semua judul presentasi ({count} data) berhasil dihapus.'})
+
+@app.route('/api/admin/presentations/bulk-delete', methods=['POST'])
+@admin_required
+def api_bulk_delete_presentations():
+    """Menghapus beberapa judul presentasi sekaligus berdasarkan daftar ID terpilih"""
+    data = request.get_json() or {}
+    ids = data.get('ids', [])
+    if not ids or not isinstance(ids, list):
+        return jsonify({'success': False, 'message': 'Pilih minimal 1 judul presentasi untuk dihapus.'}), 400
+    
+    count = database.delete_presentations_bulk(ids)
+    return jsonify({
+        'success': True,
+        'message': f'{count} judul presentasi berhasil dihapus.',
+        'count': count
+    })
+
+def detect_delimiter(sample_text):
+    """Mendeteksi delimiter file (Tab \t, Titik Koma ;, atau Koma ,) secara otomatis"""
+    if not sample_text:
+        return '\t'
+    tab_count = sample_text.count('\t')
+    semi_count = sample_text.count(';')
+    comma_count = sample_text.count(',')
+    
+    # Utamakan Tab jika terdapat karakter tab, atau ambil delimiter dengan frekuensi tertinggi
+    counts = [('\t', tab_count), (';', semi_count), (',', comma_count)]
+    counts.sort(key=lambda x: x[1], reverse=True)
+    if counts[0][1] > 0:
+        return counts[0][0]
+    return '\t'
+
+GOOGLE_SHEET_TEMPLATE_URL = "https://docs.google.com/spreadsheets/d/1EHrfQH0qMvrTPE1OOtHUb959HQfnVVj13unNSs25VJI/edit?usp=sharing"
+
+@app.route('/api/admin/presentations/template-csv', methods=['GET'])
+@admin_required
+def api_presentation_template_csv():
+    """Mengarahkan pengguna ke Google Sheets template resmi untuk diunduh sebagai TSV"""
+    return redirect(GOOGLE_SHEET_TEMPLATE_URL, code=302)
+
+@app.route('/api/admin/presentations/import-csv', methods=['POST'])
+@admin_required
+def api_import_presentations_csv():
+    """Mengimpor daftar judul presentasi & ruangan dari file TSV / CSV (Tab Delimiter)"""
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'message': 'File CSV / TSV tidak ditemukan dalam permintaan.'}), 400
+        
+    file = request.files['file']
+    if not file or file.filename == '':
+        return jsonify({'success': False, 'message': 'Silakan pilih file TSV / CSV yang ingin diimpor.'}), 400
+
+    try:
+        raw_bytes = file.read()
+        text = None
+        for enc in ['utf-8-sig', 'utf-8', 'latin-1']:
+            try:
+                text = raw_bytes.decode(enc)
+                break
+            except UnicodeDecodeError:
+                continue
+                
+        if text is None:
+            return jsonify({'success': False, 'message': 'Format encoding file tidak didukung.'}), 400
+
+        stream = io.StringIO(text)
+        sample = text[:4096]
+        delimiter = detect_delimiter(sample)
+        csv_reader = csv.reader(stream, delimiter=delimiter)
+        
+        rows = []
+        for line in csv_reader:
+            if line and any(field.strip() for field in line):
+                rows.append([f.strip() for f in line])
+                
+        if not rows:
+            return jsonify({'success': False, 'message': 'File TSV / CSV kosong atau tidak memiliki baris data.'}), 400
+
+        first_row = [c.lower().strip() for c in rows[0]]
+        judul_idx = -1
+        ruang_idx = -1
+        
+        # Cari indeks kolom berdasarkan nama header di baris pertama
+        for idx, col in enumerate(first_row):
+            if any(k in col for k in ['judul', 'title', 'paper', 'makalah', 'artikel', 'topik', 'topic', 'naskah', 'presentasi', 'presentation', 'tema']):
+                if judul_idx == -1:
+                    judul_idx = idx
+            elif any(k in col for k in ['ruang', 'ruangan', 'room', 'lokasi', 'tempat', 'kelas', 'sesi', 'link', 'zoom', 'auditorium', 'hall', 'lab']):
+                if ruang_idx == -1:
+                    ruang_idx = idx
+
+        # Jika header tidak terdeteksi via keyword, tentukan mapping default berdasarkan jumlah kolom:
+        if judul_idx == -1:
+            if len(first_row) >= 3 and ('no' in first_row[0] or first_row[0].isdigit() or '#' in first_row[0]):
+                judul_idx = 1
+                ruang_idx = 2
+            elif len(first_row) >= 2:
+                # Kolom 0 = judul, kolom 1 = ruangan
+                judul_idx = 0
+                ruang_idx = 1
+            else:
+                judul_idx = 0
+                ruang_idx = -1
+
+        # SELALU lewati baris pertama (header)
+        data_rows = rows[1:] if len(rows) > 1 else []
+        
+        inserted_count = 0
+        skipped_count = 0
+        
+        for row in data_rows:
+            if not row or not any(field.strip() for field in row):
+                continue
+            
+            judul = row[judul_idx].strip() if (judul_idx != -1 and judul_idx < len(row)) else ''
+            ruangan = row[ruang_idx].strip() if (ruang_idx != -1 and ruang_idx < len(row)) else '-'
+            
+            # Pengaman tambahan: lewati jika baris berisi nama header duplikat
+            if judul.lower() in ['judul', 'judul presentasi', 'judul paper', 'title', 'paper title', 'no', 'nomor']:
+                continue
+
+            if not judul:
+                skipped_count += 1
+                continue
+                
+            database.add_presentation(judul, ruangan or '-')
+            inserted_count += 1
+            
+        return jsonify({
+            'success': True,
+            'message': f'Impor data judul selesai! {inserted_count} judul presentasi berhasil ditambahkan.',
+            'summary': {
+                'total': inserted_count + skipped_count,
+                'inserted': inserted_count,
+                'skipped': skipped_count
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Gagal memproses file TSV / CSV judul: {str(e)}'}), 500
 
 @app.route('/api/export-csv')
 @admin_required
 def export_csv():
     """Mengekspor daftar pendaftar/peserta ke file CSV dengan format UTF-8 (kompatibel Excel)"""
     status_filter = request.args.get('status') # 'pendaftar', 'peserta', or all
-    rows = database.get_participants(status=status_filter)
+    ruangan_filter = request.args.get('ruangan')
+    rows = database.get_participants(status=status_filter, ruangan=ruangan_filter)
     
     output = io.StringIO()
     # BOM untuk Excel agar encoding UTF-8 terbaca dengan rapi di Windows/Mac
     output.write('\ufeff')
     writer = csv.writer(output)
     
-    writer.writerow(['No', 'Kode QR', 'No. Identitas (NIM/NIP/NIDN/NUPTK)', 'Nama Lengkap', 'No. HP / WA', 'Institusi', 'Pekerjaan', 'Status', 'Waktu Pendaftaran', 'Waktu Hadir'])
+    writer.writerow(['No', 'Kode QR', 'No. Identitas (NIM/NIP/NIDN/NUPTK)', 'Nama Lengkap', 'Judul Presentasi', 'Ruangan', 'No. HP / WA', 'Institusi', 'Pekerjaan', 'Status', 'Waktu Pendaftaran', 'Waktu Hadir'])
     
     for idx, row in enumerate(rows, start=1):
         status_label = 'Peserta (Hadir)' if row['status'] == 'peserta' else 'Pendaftar (Belum Hadir)'
@@ -613,6 +901,8 @@ def export_csv():
             row['qr_code'],
             row['nim_nip'],
             row['nama_lengkap'],
+            row.get('judul_presentasi') or '-',
+            row.get('ruangan') or '-',
             row['no_hp'] or '-',
             row['institusi'],
             row['pekerjaan'],
@@ -621,7 +911,7 @@ def export_csv():
             row['attended_at'] or '-'
         ])
         
-    filename = f"daftar_seminar_{status_filter or 'semua'}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    filename = f"daftar_presenter_{status_filter or 'semua'}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
     
     return Response(
         output.getvalue(),
@@ -656,7 +946,9 @@ def import_csv():
             return jsonify({'success': False, 'message': 'Format encoding file tidak didukung.'}), 400
 
         stream = io.StringIO(text)
-        csv_reader = csv.reader(stream)
+        sample = text[:4096]
+        delimiter = detect_delimiter(sample)
+        csv_reader = csv.reader(stream, delimiter=delimiter)
         
         rows = []
         for line in csv_reader:
@@ -674,6 +966,8 @@ def import_csv():
             'qr_code': ['kode qr', 'qr_code', 'qr', 'kode', 'qrcode'],
             'nim_nip': ['no. identitas (nim/nip/nidn/nuptk)', 'no. identitas', 'no identitas', 'nomor identitas', 'nim / nip', 'nim/nip', 'nim_nip', 'nim', 'nip', 'nidn', 'nuptk', 'nik', 'ktp', 'nomor induk'],
             'nama_lengkap': ['nama lengkap', 'nama_lengkap', 'nama', 'fullname', 'name'],
+            'judul_presentasi': ['judul presentasi', 'judul paper', 'judul', 'title', 'paper title', 'topik', 'judul_presentasi'],
+            'ruangan': ['ruangan', 'ruang', 'room', 'lokasi', 'tempat'],
             'no_hp': ['no. hp / wa', 'no hp / wa', 'no. hp', 'no hp', 'nomor hp', 'no telepon', 'telepon', 'whatsapp', 'no wa', 'phone', 'mobile', 'no_hp'],
             'institusi': ['institusi', 'instansi', 'universitas', 'kampus', 'perusahaan', 'institution'],
             'pekerjaan': ['pekerjaan', 'profesi', 'kategori', 'job', 'occupation'],
@@ -709,6 +1003,8 @@ def import_csv():
                     qr_code = row[header_map['qr_code']] if 'qr_code' in header_map and header_map['qr_code'] < len(row) else ''
                     nim_nip = row[header_map['nim_nip']] if header_map['nim_nip'] < len(row) else ''
                     nama_lengkap = row[header_map['nama_lengkap']] if header_map['nama_lengkap'] < len(row) else ''
+                    judul_presentasi = row[header_map['judul_presentasi']] if 'judul_presentasi' in header_map and header_map['judul_presentasi'] < len(row) else ''
+                    ruangan = row[header_map['ruangan']] if 'ruangan' in header_map and header_map['ruangan'] < len(row) else '-'
                     no_hp = row[header_map['no_hp']] if 'no_hp' in header_map and header_map['no_hp'] < len(row) else ''
                     institusi = row[header_map['institusi']] if 'institusi' in header_map and header_map['institusi'] < len(row) else '-'
                     pekerjaan = row[header_map['pekerjaan']] if 'pekerjaan' in header_map and header_map['pekerjaan'] < len(row) else 'Lainnya'
@@ -716,60 +1012,44 @@ def import_csv():
                     created_at = row[header_map['created_at']] if 'created_at' in header_map and header_map['created_at'] < len(row) else None
                     attended_at = row[header_map['attended_at']] if 'attended_at' in header_map and header_map['attended_at'] < len(row) else None
                 else:
-                    if len(row) >= 10 and row[0].isdigit():
+                    if len(row) >= 12 and row[0].isdigit():
+                        # [No, QR, NIM, Nama, Judul, Ruang, NoHP, Institusi, Pekerjaan, Status, WaktuDaftar, WaktuHadir]
+                        qr_code = row[1]
+                        nim_nip = row[2]
+                        nama_lengkap = row[3]
+                        judul_presentasi = row[4]
+                        ruangan = row[5]
+                        no_hp = row[6]
+                        institusi = row[7]
+                        pekerjaan = row[8]
+                        status = row[9]
+                        created_at = row[10]
+                        attended_at = row[11]
+                    elif len(row) >= 10 and row[0].isdigit():
                         # [No, QR, NIM, Nama, NoHP, Institusi, Pekerjaan, Status, WaktuDaftar, WaktuHadir]
                         qr_code = row[1]
                         nim_nip = row[2]
                         nama_lengkap = row[3]
+                        judul_presentasi = ''
+                        ruangan = '-'
                         no_hp = row[4]
                         institusi = row[5]
                         pekerjaan = row[6]
                         status = row[7]
                         created_at = row[8]
                         attended_at = row[9]
-                    elif len(row) >= 9 and row[0].isdigit():
-                        # Legacy 9 cols with No: [No, QR, NIM, Nama, Institusi, Pekerjaan, Status, WaktuDaftar, WaktuHadir]
-                        qr_code = row[1]
-                        nim_nip = row[2]
-                        nama_lengkap = row[3]
-                        no_hp = ''
-                        institusi = row[4]
-                        pekerjaan = row[5]
-                        status = row[6]
-                        created_at = row[7]
-                        attended_at = row[8]
-                    elif len(row) >= 9:
-                        # [QR, NIM, Nama, NoHP, Institusi, Pekerjaan, Status, WaktuDaftar, WaktuHadir]
-                        qr_code = row[0]
-                        nim_nip = row[1]
-                        nama_lengkap = row[2]
-                        no_hp = row[3]
-                        institusi = row[4]
-                        pekerjaan = row[5]
-                        status = row[6]
-                        created_at = row[7]
-                        attended_at = row[8]
-                    elif len(row) >= 8:
-                        # Legacy 8 cols: [QR, NIM, Nama, Institusi, Pekerjaan, Status, WaktuDaftar, WaktuHadir]
-                        qr_code = row[0]
-                        nim_nip = row[1]
-                        nama_lengkap = row[2]
-                        no_hp = ''
-                        institusi = row[3]
-                        pekerjaan = row[4]
-                        status = row[5]
-                        created_at = row[6]
-                        attended_at = row[7]
                     elif len(row) >= 4:
                         qr_code = ''
                         nim_nip = row[0]
                         nama_lengkap = row[1]
-                        no_hp = row[2] if len(row) > 4 else ''
-                        institusi = row[3] if len(row) > 4 else row[2]
-                        pekerjaan = row[4] if len(row) > 5 else (row[3] if len(row) > 3 else 'Lainnya')
-                        status = row[5] if len(row) > 5 else 'pendaftar'
-                        created_at = row[6] if len(row) > 6 else None
-                        attended_at = row[7] if len(row) > 7 else None
+                        judul_presentasi = row[2] if len(row) > 4 else ''
+                        ruangan = row[3] if len(row) > 5 else '-'
+                        no_hp = row[4] if len(row) > 5 else ''
+                        institusi = row[5] if len(row) > 6 else '-'
+                        pekerjaan = 'Lainnya'
+                        status = 'pendaftar'
+                        created_at = None
+                        attended_at = None
                     else:
                         error_count += 1
                         continue
@@ -780,6 +1060,8 @@ def import_csv():
                     
                 nim_nip = html.escape(nim_nip[:30])
                 nama_lengkap = html.escape(nama_lengkap[:100])
+                judul_presentasi = html.escape((judul_presentasi or '')[:255])
+                ruangan = html.escape((ruangan or '-')[:50])
                 no_hp = html.escape((no_hp or '')[:20])
                 institusi = html.escape((institusi or '-')[:120])
                 pekerjaan = html.escape((pekerjaan or 'Lainnya')[:50])
@@ -791,6 +1073,8 @@ def import_csv():
                     no_hp=no_hp,
                     institusi=institusi,
                     pekerjaan=pekerjaan,
+                    judul_presentasi=judul_presentasi,
+                    ruangan=ruangan,
                     status=status,
                     created_at=created_at,
                     attended_at=attended_at,

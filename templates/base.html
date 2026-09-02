@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Sistem Absen Seminar{% endblock %}</title>
+    <title>{% block title %}Sistem Absen Presenter{% endblock %}</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -12,13 +12,16 @@
                 extend: {
                     colors: {
                         brand: {
-                            50: '#f0fdf4',
-                            100: '#dcfce7',
-                            500: '#22c55e',
-                            600: '#16a34a',
-                            700: '#15803d',
-                            800: '#166534',
-                            900: '#14532d',
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            200: '#bfdbfe',
+                            300: '#93c5fd',
+                            400: '#60a5fa',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            800: '#1e40af',
+                            900: '#1e3a8a',
                         },
                         navy: {
                             800: '#0f172a',
@@ -69,6 +72,9 @@
             background: #94a3b8;
         }
     </style>
+    <script>
+        window.BASE_URL = "{{ request.script_root }}";
+    </script>
     {% block extra_head %}{% endblock %}
 </head>
 <body class="min-h-screen text-slate-800 flex flex-col justify-between antialiased">
@@ -76,28 +82,28 @@
     <header class="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-slate-200 shadow-sm">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
-                <a href="/" class="flex items-center gap-3 group max-w-md truncate">
+                <a href="{{ url_for('index') }}" class="flex items-center gap-3 group max-w-md truncate">
                     {% if event_settings.event_logo %}
                         <img src="{{ event_settings.event_logo }}" alt="Logo Acara" class="w-10 h-10 rounded-xl object-contain bg-white p-1 border border-slate-200 shadow-sm group-hover:scale-105 transition-transform">
                     {% else %}
-                        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform">
-                            <i data-lucide="qr-code" class="w-6 h-6"></i>
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform">
+                            <i data-lucide="presentation" class="w-6 h-6"></i>
                         </div>
                     {% endif %}
                     <div class="truncate">
                         <span class="font-extrabold text-base sm:text-lg text-slate-900 tracking-tight block leading-tight truncate">{{ event_settings.event_name }}</span>
-                        <span class="text-xs font-semibold text-emerald-600 tracking-wider uppercase">Sistem Absensi & Registrasi</span>
+                        <span class="text-xs font-semibold text-blue-600 tracking-wider uppercase">Sistem Absensi Presenter</span>
                     </div>
                 </a>
 
                 <nav class="flex items-center gap-2 sm:gap-3">
-                    <button onclick="openLanModal()" type="button" class="px-3 py-2 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200 transition flex items-center gap-1.5" title="Buka QR Link Akses Jaringan Lokal">
-                        <i data-lucide="wifi" class="w-4 h-4 text-emerald-600"></i>
+                    <button onclick="openLanModal()" type="button" class="px-3 py-2 rounded-lg text-xs font-semibold bg-blue-50 text-blue-800 hover:bg-blue-100 border border-blue-200 transition flex items-center gap-1.5" title="Buka QR Link Akses Jaringan Lokal">
+                        <i data-lucide="wifi" class="w-4 h-4 text-blue-600"></i>
                         <span class="hidden md:inline">Akses Jaringan HP/Wi-Fi</span>
                     </button>
-                    <a href="/" class="px-3.5 py-2 rounded-lg text-sm font-semibold transition-colors bg-emerald-600 text-white shadow-md shadow-emerald-600/20 flex items-center gap-2">
+                    <a href="{{ url_for('index') }}" class="px-3.5 py-2 rounded-lg text-sm font-semibold transition-colors bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20 flex items-center gap-2">
                         <i data-lucide="user-plus" class="w-4 h-4"></i>
-                        <span>Pendaftaran</span>
+                        <span>Pendaftaran Presenter</span>
                     </a>
                 </nav>
             </div>
@@ -109,7 +115,7 @@
         <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center space-y-4 border border-slate-100 animate-in fade-in zoom-in duration-200">
             <div class="flex justify-between items-center pb-2 border-b border-slate-100">
                 <div class="flex items-center gap-2">
-                    <i data-lucide="wifi" class="w-5 h-5 text-emerald-600"></i>
+                    <i data-lucide="wifi" class="w-5 h-5 text-blue-600"></i>
                     <h3 class="font-bold text-sm text-slate-800">Akses Jaringan Wi-Fi / HP</h3>
                 </div>
                 <button onclick="closeLanModal()" class="text-slate-400 hover:text-slate-600">
@@ -118,18 +124,18 @@
             </div>
 
             <p class="text-xs text-slate-600">
-                Scan QR Code ini menggunakan kamera HP untuk membuka form pendaftaran seminar di jaringan Wi-Fi lokal:
+                Scan QR Code ini menggunakan kamera HP untuk membuka formulir pendaftaran presenter di jaringan Wi-Fi lokal:
             </p>
 
             <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 inline-block">
-                <img id="lanQrImage" src="/api/qr-url.png" alt="QR Link Form" class="w-48 h-48 object-contain mx-auto">
-                <div class="mt-2 font-mono text-xs font-bold text-emerald-800 bg-emerald-50 px-2 py-1 rounded border border-emerald-200 break-all" id="lanUrlText">
+                <img id="lanQrImage" src="{{ request.script_root }}/api/qr-url.png" alt="QR Link Form" class="w-48 h-48 object-contain mx-auto">
+                <div class="mt-2 font-mono text-xs font-bold text-blue-800 bg-blue-50 px-2 py-1 rounded border border-blue-200 break-all" id="lanUrlText">
                     Memuat URL...
                 </div>
             </div>
 
             <p class="text-[11px] text-slate-400">
-                Pastikan HP / laptop peserta terhubung ke jaringan Wi-Fi yang sama dengan komputer ini.
+                Pastikan HP / laptop peserta terhubung ke jaringan Wi-Fi yang sama dengan server ini.
             </p>
         </div>
     </div>
@@ -142,11 +148,11 @@
     <!-- Footer -->
     <footer class="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-500">
         <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-2">
-            <p>© 2026 SeminarPass. Sistem Registrasi & Absensi QR Code Seminar Nasional.</p>
+            <p>© 2026 PresenterPass. Sistem Registrasi & Absensi QR Code Presenter Seminar.</p>
             <p class="flex items-center gap-1">
                 <span>Status Server:</span>
-                <span class="inline-flex items-center gap-1 text-emerald-600 font-medium">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Aktif & Siap
+                <span class="inline-flex items-center gap-1 text-blue-600 font-medium">
+                    <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span> Aktif & Siap
                 </span>
             </p>
         </div>
@@ -158,10 +164,10 @@
 
         async function openLanModal() {
             try {
-                const res = await fetch('/api/network-info');
+                const res = await fetch(`${window.BASE_URL}/api/network-info`);
                 const data = await res.json();
                 document.getElementById('lanUrlText').textContent = data.register_url_lan;
-                document.getElementById('lanQrImage').src = `/api/qr-url.png?data=${encodeURIComponent(data.register_url_lan)}`;
+                document.getElementById('lanQrImage').src = `${window.BASE_URL}/api/qr-url.png?data=${encodeURIComponent(data.register_url_lan)}`;
                 document.getElementById('lanModal').classList.remove('hidden');
                 lucide.createIcons();
             } catch (e) {

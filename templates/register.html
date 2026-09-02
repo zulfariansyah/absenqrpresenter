@@ -1,31 +1,31 @@
 {% extends 'base.html' %}
 
-{% block title %}Pendaftaran Seminar - SeminarPass{% endblock %}
+{% block title %}Pendaftaran Presenter - {{ event_settings.event_name }}{% endblock %}
 
 {% block content %}
 <div class="py-10 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
     <!-- Header Section -->
     <div class="text-center mb-8">
-        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-semibold uppercase tracking-wider mb-3">
-            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-emerald-600"></i>
-            Registrasi Peserta Seminar
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-semibold uppercase tracking-wider mb-3">
+            <i data-lucide="presentation" class="w-3.5 h-3.5 text-blue-600"></i>
+            Registrasi Presenter Seminar
         </div>
-        <h1 class="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">Formulir Pendaftaran Seminar</h1>
+        <h1 class="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">Formulir Pendaftaran Presenter</h1>
         <p class="mt-2 text-slate-600 text-sm sm:text-base max-w-xl mx-auto">
-            Silakan lengkapi data diri Anda. Setelah mendaftar, sistem akan membuat <strong>QR Code 10 Karakter Unik</strong> sebagai tiket absensi kehadiran seminar.
+            Silakan lengkapi biodata Anda dan pilih <strong>Judul Presentasi & Ruangan</strong> yang Anda bawakan. Sistem akan membuat <strong>QR Code Tiket Presenter</strong>.
         </p>
     </div>
 
     <!-- Registration Card -->
     <div class="bg-white rounded-2xl shadow-xl shadow-slate-200/60 border border-slate-200 overflow-hidden">
-        <div class="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 p-6 text-white flex items-center justify-between">
+        <div class="bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 p-6 text-white flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center">
-                    <i data-lucide="file-text" class="w-5 h-5 text-white"></i>
+                    <i data-lucide="file-badge" class="w-5 h-5 text-white"></i>
                 </div>
                 <div>
-                    <h2 class="font-bold text-lg">Informasi Biodata Pendaftar</h2>
-                    <p class="text-xs text-emerald-100">Pastikan data yang dimasukkan sudah benar dan valid</p>
+                    <h2 class="font-bold text-lg">Informasi Biodata & Judul Presentasi</h2>
+                    <p class="text-xs text-blue-100">Pastikan data diri dan judul yang Anda pilih sudah tepat</p>
                 </div>
             </div>
             <span class="hidden sm:inline-flex px-2.5 py-1 rounded-lg bg-white/20 text-xs font-medium backdrop-blur">
@@ -34,30 +34,100 @@
         </div>
 
         <form id="registrationForm" class="p-6 sm:p-8 space-y-6">
-            <!-- Row 1: NIM/NIP & Pekerjaan -->
+            <!-- Row 1: Pilih Judul Presentasi (Searchable Box Dropdown) -->
+            <div class="relative" id="presSearchWrapper">
+                <label for="presSearchInput" class="block text-sm font-semibold text-slate-700 mb-1.5 flex items-center justify-between">
+                    <span class="flex items-center gap-1.5">
+                        <i data-lucide="book-open" class="w-4 h-4 text-blue-600"></i>
+                        Pilih Judul Presentasi & Ruangan <span class="text-rose-500">*</span>
+                    </span>
+                    <span id="presentationCountBadge" class="text-[11px] font-semibold text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
+                        Memuat judul...
+                    </span>
+                </label>
+
+                <!-- Hidden Input for Form Submission -->
+                <input type="hidden" id="presentation_id" name="presentation_id" required>
+
+                <!-- Search Input Box Container -->
+                <div class="relative group">
+                    <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-600 transition">
+                        <i data-lucide="search" class="w-4 h-4"></i>
+                    </div>
+
+                    <input type="text" id="presSearchInput" autocomplete="off"
+                        placeholder="Ketik kata kunci untuk mencari judul atau ruangan..."
+                        class="w-full pl-10 pr-20 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-800 text-sm transition shadow-sm bg-white placeholder:text-slate-400">
+
+                    <!-- Action buttons (Clear & Dropdown Chevron) -->
+                    <div class="absolute inset-y-0 right-0 flex items-center pr-2.5 gap-1">
+                        <button type="button" id="presClearBtn" onclick="clearSelectedPresentation()" class="hidden p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition" title="Hapus pilihan / pencarian">
+                            <i data-lucide="x" class="w-4 h-4"></i>
+                        </button>
+                        <button type="button" id="presToggleBtn" onclick="togglePresDropdown()" class="p-1.5 rounded-md text-slate-400 hover:text-blue-600 transition" tabindex="-1">
+                            <i data-lucide="chevron-down" id="presChevronIcon" class="w-4 h-4 transition-transform duration-200"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Selected Item Preview Card (Displays when an item is selected) -->
+                <div id="selectedPresCard" class="hidden mt-2 p-3 rounded-xl bg-blue-50/90 border border-blue-200 text-blue-900 flex items-start justify-between gap-3 animate-fadeIn">
+                    <div class="flex items-start gap-2.5 min-w-0">
+                        <div class="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0 mt-0.5">
+                            <i data-lucide="check-circle" class="w-4 h-4"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <p class="font-bold text-sm text-slate-900 leading-snug" id="selectedPresTitle">-</p>
+                            <div class="flex items-center gap-2 mt-1.5 flex-wrap">
+                                <span class="font-mono text-[11px] font-bold bg-white text-slate-800 px-2.5 py-0.5 rounded-md border border-slate-200 inline-flex items-center gap-1" id="selectedPresRoom">
+                                    <i data-lucide="map-pin" class="w-3 h-3 text-blue-600"></i>
+                                    <span>-</span>
+                                </span>
+                                <span class="text-[11px] text-emerald-700 font-semibold inline-flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                    <i data-lucide="sparkles" class="w-3 h-3"></i> Judul Terpilih
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" onclick="clearSelectedPresentation()" class="text-xs font-semibold text-blue-700 hover:text-blue-900 hover:bg-blue-100 shrink-0 px-2.5 py-1.5 rounded-lg bg-white border border-blue-200 transition shadow-sm">
+                        Ganti Judul
+                    </button>
+                </div>
+
+                <!-- Dropdown Results Floating Container -->
+                <div id="presDropdownList" class="hidden absolute z-30 left-0 right-0 mt-1 max-h-72 overflow-y-auto bg-white rounded-xl shadow-2xl border border-slate-200 divide-y divide-slate-100 focus:outline-none custom-scrollbar">
+                    <!-- Dynamic Items rendered by JS -->
+                </div>
+
+                <p class="text-xs text-slate-500 mt-1.5">
+                    💡 <em>Ketik kata kunci untuk memfilter judul & ruangan. 1 Judul hanya dapat dipilih oleh 1 Presenter.</em>
+                </p>
+            </div>
+
+            <!-- Row 2: NIM/NIP & Pekerjaan -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
                     <label for="nim_nip" class="block text-sm font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
-                        <i data-lucide="id-card" class="w-4 h-4 text-emerald-600"></i>
-                        NIM / NIP / NIDN / NUPTK / No. Identitas <span class="text-rose-500">*</span>
+                        <i data-lucide="id-card" class="w-4 h-4 text-blue-600"></i>
+                        No. Identitas (NIM/NIP/NIDN/KTP) <span class="text-rose-500">*</span>
                     </label>
                     <input type="text" id="nim_nip" name="nim_nip" required
-                        placeholder="Contoh: 198501012010121001 / 2110511001 / 001205..."
-                        class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-slate-800 text-sm transition shadow-sm placeholder:text-slate-400">
-                    <p class="text-xs text-slate-500 mt-1">NIM, NIP, NIDN, NUPTK, KTP, atau nomor identitas unik lainnya</p>
+                        placeholder="Contoh: 198501012010121001 / 2110511001"
+                        class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-800 text-sm transition shadow-sm placeholder:text-slate-400">
+                    <p class="text-xs text-slate-500 mt-1">Nomor identitas unik Anda</p>
                 </div>
 
                 <div>
                     <label for="pekerjaan" class="block text-sm font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
-                        <i data-lucide="briefcase" class="w-4 h-4 text-emerald-600"></i>
+                        <i data-lucide="briefcase" class="w-4 h-4 text-blue-600"></i>
                         Pekerjaan / Profesi <span class="text-rose-500">*</span>
                     </label>
                     <div class="relative">
                         <select id="pekerjaan" name="pekerjaan" required
-                            class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-slate-800 text-sm transition shadow-sm appearance-none bg-white">
+                            class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-800 text-sm transition shadow-sm appearance-none bg-white">
                             <option value="" disabled selected>-- Pilih Pekerjaan --</option>
-                            <option value="Mahasiswa">Mahasiswa</option>
                             <option value="Dosen">Dosen</option>
+                            <option value="Mahasiswa">Mahasiswa</option>
                             <option value="Praktisi">Praktisi</option>
                             <option value="Lainnya">Lainnya</option>
                         </select>
@@ -65,53 +135,53 @@
                             <i data-lucide="chevron-down" class="w-4 h-4"></i>
                         </div>
                     </div>
-                    <p class="text-xs text-slate-500 mt-1">Pilih kategori profesi Anda saat ini</p>
+                    <p class="text-xs text-slate-500 mt-1">Pilih profesi Anda saat ini</p>
                 </div>
             </div>
 
-            <!-- Row 2: Nama Lengkap & No HP / WA -->
+            <!-- Row 3: Nama Lengkap & No HP / WA -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
                     <label for="nama_lengkap" class="block text-sm font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
-                        <i data-lucide="user" class="w-4 h-4 text-emerald-600"></i>
-                        Nama Lengkap <span class="text-rose-500">*</span>
+                        <i data-lucide="user" class="w-4 h-4 text-blue-600"></i>
+                        Nama Lengkap Presenter <span class="text-rose-500">*</span>
                     </label>
                     <input type="text" id="nama_lengkap" name="nama_lengkap" required
                         placeholder="Contoh: Dr. Budi Santoso, S.Kom., M.Cs."
-                        class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-slate-800 text-sm transition shadow-sm placeholder:text-slate-400">
-                    <p class="text-xs text-slate-500 mt-1">Nama lengkap beserta gelar untuk sertifikat</p>
+                        class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-800 text-sm transition shadow-sm placeholder:text-slate-400">
+                    <p class="text-xs text-slate-500 mt-1">Nama lengkap beserta gelar untuk sertifikat presenter</p>
                 </div>
 
                 <div>
                     <label for="no_hp" class="block text-sm font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
-                        <i data-lucide="phone" class="w-4 h-4 text-emerald-600"></i>
+                        <i data-lucide="phone" class="w-4 h-4 text-blue-600"></i>
                         No. HP / WhatsApp <span class="text-rose-500">*</span>
                     </label>
                     <input type="tel" id="no_hp" name="no_hp" required
                         placeholder="Contoh: 081234567890"
-                        class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-slate-800 text-sm transition shadow-sm placeholder:text-slate-400">
-                    <p class="text-xs text-slate-500 mt-1">Nomor aktif untuk info & konfirmasi seminar</p>
+                        class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-800 text-sm transition shadow-sm placeholder:text-slate-400">
+                    <p class="text-xs text-slate-500 mt-1">Nomor WhatsApp aktif untuk koordinasi sesi presentasi</p>
                 </div>
             </div>
 
-            <!-- Row 3: Institusi -->
+            <!-- Row 4: Institusi -->
             <div>
                 <label for="institusi" class="block text-sm font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
-                    <i data-lucide="building" class="w-4 h-4 text-emerald-600"></i>
+                    <i data-lucide="building" class="w-4 h-4 text-blue-600"></i>
                     Institusi / Universitas / Perusahaan <span class="text-rose-500">*</span>
                 </label>
                 <input type="text" id="institusi" name="institusi" required
-                    placeholder="Contoh: Universitas Indonesia / PT Teknologi Nusantara"
-                    class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-slate-800 text-sm transition shadow-sm placeholder:text-slate-400">
+                    placeholder="Contoh: Universitas Indonesia / Institut Teknologi Bandung"
+                    class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-800 text-sm transition shadow-sm placeholder:text-slate-400">
             </div>
 
             <!-- Information Alert -->
-            <div class="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs sm:text-sm flex items-start gap-3">
-                <i data-lucide="alert-circle" class="w-5 h-5 text-amber-600 shrink-0 mt-0.5"></i>
+            <div class="p-4 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 text-xs sm:text-sm flex items-start gap-3">
+                <i data-lucide="info" class="w-5 h-5 text-blue-600 shrink-0 mt-0.5"></i>
                 <div>
-                    <p class="font-semibold text-amber-950">Penting untuk Diketahui:</p>
-                    <p class="mt-0.5 text-amber-800">
-                        Setelah menekan tombol daftar, status Anda terdaftar sebagai <strong>Pendaftar</strong>. Anda akan mendapatkan <strong>QR Code Absensi</strong> yang harus ditunjukkan kepada panitia di lokasi seminar untuk di-scan menjadi <strong>Peserta Hadir</strong>.
+                    <p class="font-semibold text-blue-950">Petunjuk Kehadiran Presenter:</p>
+                    <p class="mt-0.5 text-blue-800">
+                        Setelah berhasil mendaftar, simpan <strong>QR Code Tiket Presenter</strong> Anda. Tunjukkan QR Code ini kepada panitia saat registrasi di meja presensi atau di ruangan presentasi untuk di-scan.
                     </p>
                 </div>
             </div>
@@ -125,62 +195,73 @@
             <!-- Submit Button -->
             <div class="pt-2">
                 <button type="submit" id="submitBtn"
-                    class="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-base shadow-lg shadow-emerald-600/30 hover:shadow-emerald-600/50 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2">
+                    class="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-base shadow-lg shadow-blue-600/30 hover:shadow-blue-600/50 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2">
                     <i data-lucide="check-circle" class="w-5 h-5"></i>
-                    <span id="btnText">Daftar Seminar & Buat QR Code</span>
+                    <span id="btnText">Daftar Presenter & Dapatkan QR Code</span>
                 </button>
             </div>
         </form>
     </div>
 </div>
 
-<!-- SUCCESS MODAL POPUP (TIKET QR CODE) -->
-<div id="successModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-100 animate-in fade-in zoom-in duration-200">
-        <!-- Modal Header -->
-        <div class="bg-gradient-to-r from-emerald-600 to-teal-600 p-6 text-white text-center relative">
-            <button onclick="closeModalAndReset()" class="absolute top-4 right-4 text-white/80 hover:text-white transition">
-                <i data-lucide="x" class="w-6 h-6"></i>
+<!-- SUCCESS MODAL POPUP (TIKET QR CODE PRESENTER) -->
+<div id="successModal" class="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm hidden overflow-y-auto p-3 sm:p-6 flex items-center justify-center">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full max-h-[92vh] flex flex-col border border-slate-100 animate-in fade-in zoom-in duration-200 relative my-auto overflow-hidden">
+        <!-- Modal Header (Fixed at top of modal) -->
+        <div class="bg-gradient-to-r from-blue-600 to-indigo-600 p-5 sm:p-6 text-white text-center relative shrink-0">
+            <button type="button" onclick="closeModalAndReset()" class="absolute top-4 right-4 p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition" title="Tutup Jendela">
+                <i data-lucide="x" class="w-5 h-5"></i>
             </button>
-            <div class="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center mx-auto mb-2 text-white">
+            <div class="w-11 h-11 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center mx-auto mb-2 text-white shadow-inner">
                 <i data-lucide="check-check" class="w-6 h-6 stroke-[3]"></i>
             </div>
-            <h3 class="text-xl font-extrabold">Pendaftaran Berhasil!</h3>
-            <p class="text-xs text-emerald-100 mt-1">Data Anda tersimpan di sistem sebagai <strong>Pendaftar</strong>.</p>
+            <h3 class="text-lg sm:text-xl font-extrabold">Pendaftaran Presenter Berhasil!</h3>
+            <p class="text-[11px] sm:text-xs text-blue-100 mt-0.5">Data Anda tersimpan di sistem sebagai <strong>Pendaftar Presenter</strong>.</p>
         </div>
 
-        <!-- Modal Body: QR Code & Warning Banner -->
-        <div class="p-6 text-center space-y-4">
-            <!-- IMPORTANT WARNING BANNER FOR PARTICIPANTS -->
-            <div class="p-4 rounded-2xl bg-amber-50 border-2 border-amber-300 text-left flex items-start gap-3 shadow-sm">
-                <div class="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
-                    <i data-lucide="camera" class="w-5 h-5"></i>
+        <!-- Modal Body: Scrollable Content for Mobile Devices -->
+        <div class="p-4 sm:p-6 text-center space-y-4 overflow-y-auto overscroll-contain flex-1 custom-scrollbar">
+            <!-- IMPORTANT WARNING BANNER FOR PRESENTERS -->
+            <div class="p-3.5 sm:p-4 rounded-2xl bg-amber-50 border border-amber-300 text-left flex items-start gap-3 shadow-sm">
+                <div class="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
+                    <i data-lucide="camera" class="w-4 h-4"></i>
                 </div>
                 <div>
                     <h4 class="text-xs sm:text-sm font-extrabold text-amber-950 uppercase tracking-wide flex items-center gap-1.5">
-                        <span>📸 HIMBAUAN PENTING PESERTA:</span>
+                        <span>📸 HIMBAUAN PENTING:</span>
                     </h4>
-                    <p class="text-xs text-amber-900 mt-1 leading-relaxed">
-                        Mohon <strong>simpan QR Code ini sekarang</strong> dengan mengambil <strong>tangkapan layar (screenshot)</strong> atau menekan tombol <strong>Download QR</strong> di bawah, karena QR Code ini wajib ditunjukkan saat registrasi kehadiran di lokasi seminar.
+                    <p class="text-[11px] sm:text-xs text-amber-900 mt-0.5 leading-relaxed">
+                        Mohon <strong>simpan QR Code ini sekarang</strong> dengan mengambil <strong>tangkapan layar (screenshot)</strong> atau menekan tombol <strong>Download QR</strong> di bawah untuk ditunjukkan saat registrasi kehadiran.
                     </p>
                 </div>
             </div>
 
             <!-- QR Code Display Box -->
-            <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200 inline-block shadow-inner">
-                <img id="modalQrImage" src="" alt="QR Code Tiket" class="w-48 h-48 sm:w-56 sm:h-56 mx-auto object-contain bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
-                <div class="mt-3">
-                    <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Kode Tiket Anda:</span>
-                    <span id="modalQrCode" class="font-mono text-xl sm:text-2xl font-black text-emerald-800 tracking-widest bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-200 inline-block mt-1">
+            <div class="bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200 inline-block shadow-inner w-full max-w-xs mx-auto">
+                <img id="modalQrImage" src="" alt="QR Code Tiket" class="w-40 h-40 sm:w-52 sm:h-52 mx-auto object-contain bg-white p-2 rounded-xl border border-slate-200 shadow-sm cursor-pointer" onclick="saveQrToGallery()" title="Klik untuk simpan ke Galeri / Foto">
+                <div class="mt-2.5">
+                    <span class="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Kode Tiket Presenter:</span>
+                    <span id="modalQrCode" class="font-mono text-lg sm:text-2xl font-black text-blue-800 tracking-widest bg-blue-50 px-3 py-0.5 rounded-lg border border-blue-200 inline-block mt-1">
                         ----------
                     </span>
                 </div>
+                <p class="text-[10px] text-slate-500 mt-2 bg-white/90 p-1.5 rounded-lg border border-slate-200 leading-snug">
+                    📱 <em>Tekan & tahan gambar QR di atas untuk opsi langsung <strong>"Simpan ke Foto / Galeri"</strong></em>
+                </p>
             </div>
 
-            <!-- Participant Info Summary -->
-            <div class="bg-slate-50 rounded-2xl p-4 text-xs text-left space-y-2 border border-slate-200">
-                <div class="flex justify-between border-b border-slate-200/80 pb-1.5">
-                    <span class="text-slate-500">Nama:</span>
+            <!-- Presenter & Presentation Info Summary -->
+            <div class="bg-slate-50 rounded-2xl p-3.5 sm:p-4 text-xs text-left space-y-2 border border-slate-200">
+                <div class="bg-blue-50/80 p-2.5 rounded-xl border border-blue-200 text-blue-950 space-y-1">
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-blue-600">Judul Presentasi:</div>
+                    <div id="modalJudul" class="font-bold text-xs sm:text-sm leading-snug text-slate-900">-</div>
+                    <div class="text-[11px] text-blue-700 flex items-center gap-1 pt-0.5">
+                        <i data-lucide="map-pin" class="w-3.5 h-3.5 text-blue-600"></i>
+                        <span>Ruangan: <strong id="modalRuangan" class="font-mono text-slate-900 font-bold">-</strong></span>
+                    </div>
+                </div>
+                <div class="flex justify-between border-b border-slate-200/80 pb-1.5 pt-1">
+                    <span class="text-slate-500">Nama Presenter:</span>
                     <span id="modalNama" class="font-bold text-slate-900 text-right">-</span>
                 </div>
                 <div class="flex justify-between border-b border-slate-200/80 pb-1.5">
@@ -189,33 +270,29 @@
                 </div>
                 <div class="flex justify-between border-b border-slate-200/80 pb-1.5">
                     <span class="text-slate-500">No. HP / WA:</span>
-                    <span id="modalHp" class="font-bold font-mono text-emerald-700">-</span>
+                    <span id="modalHp" class="font-bold font-mono text-blue-700">-</span>
                 </div>
-                <div class="flex justify-between border-b border-slate-200/80 pb-1.5">
+                <div class="flex justify-between">
                     <span class="text-slate-500">Institusi:</span>
                     <span id="modalInstitusi" class="font-bold text-slate-900 text-right">-</span>
                 </div>
-                <div class="flex justify-between">
-                    <span class="text-slate-500">Pekerjaan:</span>
-                    <span id="modalPekerjaan" class="font-semibold text-emerald-700">-</span>
-                </div>
             </div>
 
-            <!-- Action Buttons: Download QR, Open Ticket, Finish -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                <a id="btnDownloadQr" href="#" download=""
-                    class="py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-md">
-                    <i data-lucide="download" class="w-4 h-4 text-emerald-400"></i>
-                    <span>Download QR (Simpan)</span>
-                </a>
+            <!-- Action Buttons: Save to Gallery & Open Ticket -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2">
+                <button type="button" onclick="saveQrToGallery()" id="btnSaveQrGallery"
+                    class="py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-md min-h-[44px]">
+                    <i data-lucide="image-down" class="w-4 h-4 text-emerald-400"></i>
+                    <span>Simpan ke Galeri / Foto</span>
+                </button>
                 <a id="btnOpenTicket" href="#" target="_blank"
-                    class="py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-md">
+                    class="py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-md min-h-[44px]">
                     <i data-lucide="external-link" class="w-4 h-4"></i>
                     <span>Buka E-Ticket Digital</span>
                 </a>
             </div>
 
-            <button onclick="closeModalAndReset()" class="w-full py-2.5 text-xs text-slate-500 hover:text-slate-800 font-semibold transition">
+            <button type="button" onclick="closeModalAndReset()" class="w-full py-2.5 text-xs text-slate-500 hover:text-slate-800 font-semibold transition hover:underline">
                 Selesai & Tutup Jendela
             </button>
         </div>
@@ -229,12 +306,245 @@
     const submitBtn = document.getElementById('submitBtn');
     const btnText = document.getElementById('btnText');
     const successModal = document.getElementById('successModal');
+    const presHiddenInput = document.getElementById('presentation_id');
+    const presSearchInput = document.getElementById('presSearchInput');
+    const presDropdownList = document.getElementById('presDropdownList');
+    const presBadge = document.getElementById('presentationCountBadge');
+    const presChevronIcon = document.getElementById('presChevronIcon');
+    const presClearBtn = document.getElementById('presClearBtn');
+    const selectedPresCard = document.getElementById('selectedPresCard');
+
+    let allPresentations = [];
+    let selectedPresentation = null;
     let currentQr = '';
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+        return text.toString().replace(/[&<>"']/g, m => map[m]);
+    }
+
+    // Memuat daftar judul presentasi dari API
+    async function loadPresentations() {
+        try {
+            const res = await fetch(`${window.BASE_URL}/api/presentations/public`);
+            const data = await res.json();
+            
+            if (data.success && data.data) {
+                allPresentations = data.data;
+                const totalCount = allPresentations.length;
+                const availableCount = allPresentations.filter(p => !p.is_taken).length;
+
+                if (totalCount === 0) {
+                    presBadge.textContent = '0 Judul Tersedia';
+                    presSearchInput.placeholder = '⚠️ Belum ada judul presentasi dari panitia';
+                    presSearchInput.disabled = true;
+                } else {
+                    presBadge.textContent = `${availableCount} dari ${totalCount} Judul Tersedia`;
+                    presSearchInput.disabled = false;
+                }
+
+                // If currently selected presentation became taken, reset it
+                if (selectedPresentation) {
+                    const current = allPresentations.find(p => p.id === selectedPresentation.id);
+                    if (current && current.is_taken) {
+                        clearSelectedPresentation();
+                    }
+                }
+
+                renderPresDropdown();
+            } else {
+                presBadge.textContent = 'Gagal memuat judul';
+            }
+        } catch (e) {
+            console.error('Error loading presentations:', e);
+            presBadge.textContent = 'Koneksi error';
+        }
+    }
+
+    // Render item ke dalam floating dropdown sesuai kata kunci pencarian
+    function renderPresDropdown() {
+        if (!presDropdownList) return;
+        const query = (presSearchInput.value || '').trim().toLowerCase();
+
+        let filtered = allPresentations;
+        if (query) {
+            // Split search query by spaces to support multi-word matching
+            const queryWords = query.split(/\s+/).filter(Boolean);
+            filtered = allPresentations.filter(item => {
+                const searchTarget = `${item.judul} ${item.ruangan || ''} ${item.presenter_name || ''}`.toLowerCase();
+                return queryWords.every(word => searchTarget.includes(word));
+            });
+        }
+
+        if (filtered.length === 0) {
+            presDropdownList.innerHTML = `
+                <div class="p-6 text-center text-slate-400">
+                    <i data-lucide="search-x" class="w-7 h-7 mx-auto mb-2 text-slate-300"></i>
+                    <p class="font-semibold text-xs text-slate-700">Tidak ada judul yang cocok</p>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Kata kunci "<b>${escapeHtml(query)}</b>" tidak ditemukan pada judul atau ruangan.</p>
+                </div>
+            `;
+            lucide.createIcons();
+            return;
+        }
+
+        let html = '';
+        filtered.forEach(item => {
+            const safeJudul = escapeHtml(item.judul);
+            const safeRuang = escapeHtml(item.ruangan || '-');
+
+            if (item.is_taken) {
+                const safeName = escapeHtml(item.presenter_name || 'Presenter');
+                const safeQr = item.presenter_qr ? encodeURIComponent(item.presenter_qr) : '';
+                html += `
+                    <div class="p-3.5 bg-slate-50/90 border-b border-slate-100/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                        <div class="min-w-0 flex-1">
+                            <div class="font-medium text-xs sm:text-sm text-slate-500 opacity-80 leading-snug line-through">${safeJudul}</div>
+                            <div class="flex items-center gap-2 mt-1.5 flex-wrap">
+                                <span class="font-mono text-[11px] bg-slate-200/60 text-slate-500 px-2 py-0.5 rounded border border-slate-300 inline-flex items-center gap-1">
+                                    <i data-lucide="map-pin" class="w-3 h-3"></i>
+                                    <span>${safeRuang}</span>
+                                </span>
+                                <span class="text-[11px] text-rose-700 font-semibold inline-flex items-center gap-1 bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-200">
+                                    <i data-lucide="lock" class="w-3 h-3 text-rose-500"></i> Sudah Terisi (${safeName})
+                                </span>
+                            </div>
+                        </div>
+                        <div class="shrink-0 pt-0.5 sm:pt-0">
+                            ${safeQr ? `
+                                <a href="${window.BASE_URL}/ticket/${safeQr}" target="_blank" onclick="event.stopPropagation()"
+                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 hover:border-blue-300 text-xs font-bold transition shadow-xs">
+                                    <i data-lucide="qr-code" class="w-3.5 h-3.5 text-blue-600"></i>
+                                    <span>Klik jika ingin melihat QR lagi</span>
+                                    <i data-lucide="external-link" class="w-3 h-3 text-blue-500"></i>
+                                </a>
+                            ` : `
+                                <span class="text-[11px] text-slate-400 font-medium">Tidak Tersedia</span>
+                            `}
+                        </div>
+                    </div>
+                `;
+            } else {
+                const isCurrentSelected = selectedPresentation && selectedPresentation.id === item.id;
+                html += `
+                    <div onclick="selectPresentation(${item.id})" class="p-3.5 hover:bg-blue-50/90 cursor-pointer transition flex items-start justify-between gap-3 group ${isCurrentSelected ? 'bg-blue-50 border-l-4 border-blue-600' : ''}">
+                        <div class="min-w-0 flex-1">
+                            <div class="font-bold text-xs sm:text-sm text-slate-900 group-hover:text-blue-700 leading-snug transition-colors">${safeJudul}</div>
+                            <div class="flex items-center gap-2 mt-1.5 flex-wrap">
+                                <span class="font-mono text-[11px] font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200 inline-flex items-center gap-1">
+                                    <i data-lucide="map-pin" class="w-3 h-3 text-blue-600"></i>
+                                    <span>${safeRuang}</span>
+                                </span>
+                                <span class="text-[11px] text-emerald-700 font-semibold inline-flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                    <i data-lucide="sparkles" class="w-3 h-3 text-emerald-600"></i> Tersedia
+                                </span>
+                            </div>
+                        </div>
+                        <div class="shrink-0 pt-0.5 opacity-0 group-hover:opacity-100 transition text-blue-600 font-semibold text-xs flex items-center gap-1">
+                            <span>Pilih</span>
+                            <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                        </div>
+                    </div>
+                `;
+            }
+        });
+
+        presDropdownList.innerHTML = html;
+        lucide.createIcons();
+    }
+
+    function selectPresentation(id) {
+        const item = allPresentations.find(p => p.id === id);
+        if (!item || item.is_taken) return;
+
+        selectedPresentation = item;
+        presHiddenInput.value = item.id;
+
+        document.getElementById('selectedPresTitle').textContent = item.judul;
+        document.getElementById('selectedPresRoom').innerHTML = `
+            <i data-lucide="map-pin" class="w-3 h-3 text-blue-600"></i>
+            <span>${escapeHtml(item.ruangan || '-')}</span>
+        `;
+        selectedPresCard.classList.remove('hidden');
+
+        presSearchInput.value = item.judul;
+        if (presClearBtn) presClearBtn.classList.remove('hidden');
+
+        closePresDropdown();
+        lucide.createIcons();
+    }
+
+    function clearSelectedPresentation() {
+        selectedPresentation = null;
+        presHiddenInput.value = '';
+        selectedPresCard.classList.add('hidden');
+        presSearchInput.value = '';
+        if (presClearBtn) presClearBtn.classList.add('hidden');
+        openPresDropdown();
+        presSearchInput.focus();
+        renderPresDropdown();
+    }
+
+    function openPresDropdown() {
+        if (allPresentations.length === 0) return;
+        presDropdownList.classList.remove('hidden');
+        if (presChevronIcon) presChevronIcon.classList.add('rotate-180');
+        renderPresDropdown();
+    }
+
+    function closePresDropdown() {
+        presDropdownList.classList.add('hidden');
+        if (presChevronIcon) presChevronIcon.classList.remove('rotate-180');
+    }
+
+    function togglePresDropdown() {
+        if (presDropdownList.classList.contains('hidden')) {
+            openPresDropdown();
+            presSearchInput.focus();
+        } else {
+            closePresDropdown();
+        }
+    }
+
+    // Event listeners pencarian & dropdown
+    if (presSearchInput) {
+        presSearchInput.addEventListener('focus', () => {
+            openPresDropdown();
+        });
+
+        presSearchInput.addEventListener('input', () => {
+            if (presSearchInput.value.trim().length > 0) {
+                if (presClearBtn) presClearBtn.classList.remove('hidden');
+            } else {
+                if (!selectedPresentation && presClearBtn) presClearBtn.classList.add('hidden');
+            }
+            openPresDropdown();
+            renderPresDropdown();
+        });
+    }
+
+    // Klik di luar area search box menutup dropdown
+    document.addEventListener('click', (e) => {
+        const wrapper = document.getElementById('presSearchWrapper');
+        if (wrapper && !wrapper.contains(e.target)) {
+            closePresDropdown();
+        }
+    });
+
+    // Keyboard ESC key menutup dropdown
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closePresDropdown();
+    });
+
+    // Inisialisasi daftar judul saat halaman dimuat
+    loadPresentations();
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         
         const payload = {
+            presentation_id: presHiddenInput.value,
             nim_nip: document.getElementById('nim_nip').value.trim(),
             nama_lengkap: document.getElementById('nama_lengkap').value.trim(),
             no_hp: document.getElementById('no_hp').value.trim(),
@@ -244,12 +554,24 @@
             hp_secondary: document.getElementById('hp_secondary')?.value || ''
         };
 
+        if (!payload.presentation_id) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Judul Belum Dipilih',
+                text: 'Silakan pilih salah satu Judul Presentasi yang Anda bawakan!',
+                confirmButtonColor: '#2563eb'
+            });
+            openPresDropdown();
+            presSearchInput.focus();
+            return;
+        }
+
         if (!payload.nim_nip || !payload.nama_lengkap || !payload.no_hp || !payload.institusi || !payload.pekerjaan) {
             Swal.fire({
                 icon: 'warning',
                 title: 'Data Belum Lengkap',
                 text: 'Harap isi semua kolom formulir pendaftaran!',
-                confirmButtonColor: '#16a34a'
+                confirmButtonColor: '#2563eb'
             });
             return;
         }
@@ -277,14 +599,11 @@
                 document.getElementById('modalNim').textContent = p.nim_nip;
                 document.getElementById('modalHp').textContent = p.no_hp || '-';
                 document.getElementById('modalInstitusi').textContent = p.institusi;
-                document.getElementById('modalPekerjaan').textContent = p.pekerjaan;
+                document.getElementById('modalJudul').textContent = p.judul_presentasi || '-';
+                document.getElementById('modalRuangan').textContent = p.ruangan || '-';
                 
                 const qrUrl = `${window.BASE_URL}/api/qr/${p.qr_code}.png`;
                 document.getElementById('modalQrImage').src = qrUrl;
-                
-                const downloadBtn = document.getElementById('btnDownloadQr');
-                downloadBtn.href = qrUrl;
-                downloadBtn.download = `Tiket_QR_${p.qr_code}_${p.nama_lengkap.replace(/\s+/g, '_')}.png`;
 
                 const ticketBtn = document.getElementById('btnOpenTicket');
                 ticketBtn.href = `${window.BASE_URL}/ticket/${p.qr_code}`;
@@ -292,11 +611,14 @@
                 // Show modal & confetti
                 successModal.classList.remove('hidden');
                 confetti({
-                    particleCount: 80,
-                    spread: 70,
+                    particleCount: 90,
+                    spread: 75,
                     origin: { y: 0.6 }
                 });
                 lucide.createIcons();
+
+                // Refresh daftar judul agar judul yang baru diklaim langsung disabled
+                loadPresentations();
             } else if (res.code === 'DUPLICATE_NIM' && res.data) {
                 // Friendly modal if already registered
                 Swal.fire({
@@ -304,7 +626,7 @@
                     title: 'No. Identitas Sudah Terdaftar',
                     text: res.message,
                     showCancelButton: true,
-                    confirmButtonColor: '#16a34a',
+                    confirmButtonColor: '#2563eb',
                     confirmButtonText: 'Buka Tiket QR Saya',
                     cancelButtonText: 'Tutup'
                 }).then((choice) => {
@@ -317,8 +639,9 @@
                     icon: 'error',
                     title: 'Gagal Mendaftar',
                     text: res.message || 'Terjadi kesalahan pada server.',
-                    confirmButtonColor: '#16a34a'
+                    confirmButtonColor: '#2563eb'
                 });
+                loadPresentations();
             }
         } catch (error) {
             console.error('Error registering:', error);
@@ -326,17 +649,76 @@
                 icon: 'error',
                 title: 'Koneksi Bermasalah',
                 text: 'Tidak dapat menghubungi server. Pastikan server aktif.',
-                confirmButtonColor: '#16a34a'
+                confirmButtonColor: '#2563eb'
             });
         } finally {
             submitBtn.disabled = false;
-            btnText.textContent = 'Daftar Seminar & Buat QR Code';
+            btnText.textContent = 'Daftar Presenter & Dapatkan QR Code';
         }
     });
+
+    async function saveQrToGallery() {
+        const qrImage = document.getElementById('modalQrImage');
+        if (!qrImage || !qrImage.src) return;
+
+        const qrCode = document.getElementById('modalQrCode').textContent.trim() || 'TIKET';
+        const filename = `qr_presenter_semnasretro_${qrCode.toLowerCase()}.png`;
+
+        const btn = document.getElementById('btnSaveQrGallery');
+        const origHtml = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin text-white"></i><span>Menyiapkan...</span>';
+            lucide.createIcons();
+        }
+
+        try {
+            const res = await fetch(qrImage.src);
+            const blob = await res.blob();
+            const file = new File([blob], filename, { type: 'image/png' });
+
+            // Cek dukungan Web Share API (Khusus HP iOS/Android untuk langsung Save Image ke Galeri/Foto)
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    files: [file],
+                    title: `Tiket QR Presenter - ${presenterName}`,
+                    text: `Tiket QR Code Presenter Seminar: ${qrCode}`
+                });
+                if (btn) btn.innerHTML = origHtml;
+                lucide.createIcons();
+                return;
+            }
+        } catch (err) {
+            if (err.name === 'AbortError') {
+                if (btn) btn.innerHTML = origHtml;
+                lucide.createIcons();
+                return;
+            }
+            console.log('Web Share fallback to direct download:', err);
+        }
+
+        // Fallback untuk browser PC / browser tanpa Web Share API
+        const link = document.createElement('a');
+        link.href = qrImage.src;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        if (btn) {
+            btn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-emerald-400"></i><span>Tersimpan!</span>';
+            lucide.createIcons();
+            setTimeout(() => {
+                btn.innerHTML = origHtml;
+                lucide.createIcons();
+            }, 2000);
+        }
+    }
 
     function closeModalAndReset() {
         successModal.classList.add('hidden');
         form.reset();
+        clearSelectedPresentation();
+        loadPresentations();
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 </script>

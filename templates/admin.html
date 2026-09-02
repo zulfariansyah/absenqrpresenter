@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Console Admin - {{ event_settings.event_name }}</title>
+    <title>Console Admin Presenter - {{ event_settings.event_name }}</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -12,17 +12,19 @@
                 extend: {
                     colors: {
                         brand: {
-                            50: '#f0fdf4',
-                            100: '#dcfce7',
-                            500: '#22c55e',
-                            600: '#16a34a',
-                            700: '#15803d',
-                            800: '#166534',
-                            900: '#14532d',
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            200: '#bfdbfe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            800: '#1e40af',
+                            900: '#1e3a8a',
                         }
                     },
                     fontFamily: {
                         sans: ['Plus Jakarta Sans', 'Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'Fira Code', 'monospace']
                     }
                 }
             }
@@ -31,35 +33,44 @@
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- HTML5-QRCode Scanner Library -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <!-- Canvas Confetti -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    <!-- HTML5 QR Code Scanner Library -->
-    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    <script>
-        window.BASE_URL = "{{ request.script_root }}";
-        if (!window.BASE_URL || window.BASE_URL === "undefined") {
-            window.BASE_URL = "";
-        }
-    </script>
 
     <style>
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
             background-color: #f8fafc;
         }
+        #reader {
+            border: none !important;
+        }
         #reader video {
             border-radius: 1rem;
             object-fit: cover;
         }
-        #reader {
+        #reader__scan_region {
+            background: transparent !important;
+        }
+        #reader__dashboard {
+            padding: 8px !important;
+            background: transparent !important;
+        }
+        #reader__dashboard_section_csr button {
+            background-color: #2563eb !important;
+            color: white !important;
+            border-radius: 0.75rem !important;
+            padding: 6px 14px !important;
+            font-size: 0.75rem !important;
+            font-weight: 600 !important;
             border: none !important;
         }
-        /* Custom scrollbar */
         ::-webkit-scrollbar {
             width: 6px;
             height: 6px;
@@ -75,36 +86,36 @@
             background: #94a3b8;
         }
     </style>
+    <script>
+        window.BASE_URL = "{{ request.script_root }}";
+    </script>
 </head>
-<body class="min-h-screen text-slate-800 flex flex-col justify-between antialiased">
-    <!-- Console Top Navbar -->
-    <header class="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-slate-200 shadow-sm">
+<body class="min-h-screen flex flex-col text-slate-800 antialiased bg-slate-50">
+    <!-- Top Global Header -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-16">
-                <!-- Branding -->
-                <div class="flex items-center gap-3 truncate max-w-lg">
+            <div class="flex items-center justify-between h-16">
+                <!-- Brand & Event Identity -->
+                <div class="flex items-center gap-3">
                     {% if event_settings.event_logo %}
-                        <img src="{{ event_settings.event_logo }}" alt="Logo" class="w-10 h-10 rounded-xl object-contain bg-white p-1 border border-slate-200 shadow-sm">
+                        <img src="{{ event_settings.event_logo }}" alt="Logo" class="w-10 h-10 rounded-xl object-contain bg-white p-1 border border-slate-200 shadow-xs">
                     {% else %}
-                        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-md shadow-emerald-500/20">
-                            <i data-lucide="shield-check" class="w-6 h-6"></i>
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
+                            <i data-lucide="presentation" class="w-5 h-5"></i>
                         </div>
                     {% endif %}
-                    <div class="truncate">
-                        <div class="flex items-center gap-2">
-                            <span class="font-extrabold text-base sm:text-lg text-slate-900 tracking-tight block leading-tight truncate">{{ event_settings.event_name }}</span>
-                            <span class="hidden sm:inline-flex px-2 py-0.5 rounded-full {% if is_superadmin %}bg-purple-100 text-purple-800{% else %}bg-emerald-100 text-emerald-800{% endif %} text-[10px] font-bold uppercase tracking-wider">
-                                {{ 'Super Admin' if is_superadmin else 'Petugas Admin' }}
-                            </span>
-                        </div>
-                        <span class="text-xs font-semibold text-emerald-600 tracking-wider uppercase">Sistem Absensi & Registrasi</span>
+                    <div>
+                        <a href="{{ url_for('console') }}" class="font-extrabold text-base sm:text-lg text-slate-900 tracking-tight block hover:text-blue-600 transition leading-tight">
+                            {{ event_settings.event_name }}
+                        </a>
+                        <span class="text-xs font-semibold text-blue-600 tracking-wider uppercase">Sistem Absensi Presenter</span>
                     </div>
                 </div>
 
                 <!-- Right Actions: User Badge, LAN Wi-Fi Link & Logout -->
                 <div class="flex items-center gap-2 sm:gap-3">
                     <div class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
-                        <div class="w-6 h-6 rounded-full {% if is_superadmin %}bg-purple-600{% else %}bg-emerald-600{% endif %} text-white flex items-center justify-center text-[10px] font-bold">
+                        <div class="w-6 h-6 rounded-full {% if is_superadmin %}bg-purple-600{% else %}bg-blue-600{% endif %} text-white flex items-center justify-center text-[10px] font-bold">
                             {{ admin_name[0] | upper }}
                         </div>
                         <div class="text-left">
@@ -113,8 +124,8 @@
                         </div>
                     </div>
 
-                    <button onclick="openLanModal()" type="button" class="px-3 py-2 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200 transition flex items-center gap-1.5" title="Buka QR Link Akses Jaringan Lokal">
-                        <i data-lucide="wifi" class="w-4 h-4 text-emerald-600"></i>
+                    <button onclick="openLanModal()" type="button" class="px-3 py-2 rounded-lg text-xs font-semibold bg-blue-50 text-blue-800 hover:bg-blue-100 border border-blue-200 transition flex items-center gap-1.5" title="Buka QR Link Akses Jaringan Lokal">
+                        <i data-lucide="wifi" class="w-4 h-4 text-blue-600"></i>
                         <span class="hidden lg:inline">Akses Wi-Fi</span>
                     </button>
                     <button onclick="handleLogout()" type="button" class="px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition flex items-center gap-1.5">
@@ -131,11 +142,11 @@
         <!-- Top Bar: Header & Main Navigation Tabs -->
         <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
             <div class="flex items-center gap-3">
-                <div class="w-12 h-12 rounded-xl {% if is_superadmin %}bg-purple-600 shadow-purple-600/20{% else %}bg-emerald-600 shadow-emerald-600/20{% endif %} flex items-center justify-center text-white shadow-md">
+                <div class="w-12 h-12 rounded-xl {% if is_superadmin %}bg-purple-600 shadow-purple-600/20{% else %}bg-blue-600 shadow-blue-600/20{% endif %} flex items-center justify-center text-white shadow-md">
                     <i data-lucide="layout-dashboard" class="w-6 h-6"></i>
                 </div>
                 <div>
-                    <h1 class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Console Absensi Seminar</h1>
+                    <h1 class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Console Absensi Presenter</h1>
                     <p class="text-xs text-slate-500">Masuk sebagai: <strong>{{ admin_name }}</strong> ({% if is_superadmin %}Super Administrator{% else %}Petugas Absensi{% endif %})</p>
                 </div>
             </div>
@@ -143,25 +154,30 @@
             <!-- Navigation Menus -->
             <div class="flex flex-wrap items-center p-1 bg-slate-100 rounded-xl border border-slate-200 gap-1">
                 <button id="navScanBtn" onclick="switchMainMenu('scan')"
-                    class="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all bg-emerald-600 text-white shadow-sm">
+                    class="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all bg-blue-600 text-white shadow-sm">
                     <i data-lucide="scan-line" class="w-4 h-4"></i>
                     <span>1. Scan Absensi</span>
                 </button>
                 <button id="navInfoBtn" onclick="switchMainMenu('info')"
                     class="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all text-slate-600 hover:text-slate-900">
                     <i data-lucide="users" class="w-4 h-4"></i>
-                    <span>2. Informasi Peserta</span>
+                    <span>2. Data Presenter</span>
+                </button>
+                <button id="navPresentationsBtn" onclick="switchMainMenu('presentations')"
+                    class="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all text-slate-600 hover:text-slate-900">
+                    <i data-lucide="book-open" class="w-4 h-4"></i>
+                    <span>3. Kelola Judul</span>
                 </button>
                 <button id="navSettingsBtn" onclick="switchMainMenu('settings')"
                     class="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all text-slate-600 hover:text-slate-900">
                     <i data-lucide="sliders" class="w-4 h-4"></i>
-                    <span>3. Pengaturan Acara</span>
+                    <span>4. Pengaturan</span>
                 </button>
                 {% if is_superadmin %}
                 <button id="navAdminUsersBtn" onclick="switchMainMenu('admin_users')"
                     class="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200">
                     <i data-lucide="user-cog" class="w-4 h-4"></i>
-                    <span>4. Manajemen Admin</span>
+                    <span>5. Manajemen Admin</span>
                 </button>
                 {% endif %}
             </div>
@@ -169,13 +185,13 @@
 
         <!-- Quick Stats Cards (Always Visible) -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <!-- Card 1: Total Registrasi -->
+            <!-- Card 1: Total Presenter -->
             <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3.5">
                 <div class="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
                     <i data-lucide="user-check" class="w-5 h-5"></i>
                 </div>
                 <div>
-                    <div class="text-xs text-slate-500 font-semibold uppercase tracking-wider">Total Pendaftar</div>
+                    <div class="text-xs text-slate-500 font-semibold uppercase tracking-wider">Total Presenter</div>
                     <div class="text-2xl font-extrabold text-slate-900" id="statTotal">0</div>
                 </div>
             </div>
@@ -186,30 +202,30 @@
                     <i data-lucide="clock" class="w-5 h-5"></i>
                 </div>
                 <div>
-                    <div class="text-xs text-amber-700 font-semibold uppercase tracking-wider">Belum Hadir (Pendaftar)</div>
+                    <div class="text-xs text-amber-700 font-semibold uppercase tracking-wider">Belum Presensi</div>
                     <div class="text-2xl font-extrabold text-amber-600" id="statPendaftar">0</div>
                 </div>
             </div>
 
             <!-- Card 3: Sudah Hadir (Peserta) -->
             <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3.5">
-                <div class="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                    <i data-lucide="check-circle" class="w-5 h-5"></i>
+                <div class="w-11 h-11 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center shrink-0">
+                    <i data-lucide="check-circle-2" class="w-5 h-5"></i>
                 </div>
                 <div>
-                    <div class="text-xs text-emerald-700 font-semibold uppercase tracking-wider">Sudah Hadir (Peserta)</div>
-                    <div class="text-2xl font-extrabold text-emerald-600" id="statPeserta">0</div>
+                    <div class="text-xs text-blue-800 font-semibold uppercase tracking-wider">Sudah Hadir</div>
+                    <div class="text-2xl font-extrabold text-blue-700" id="statPeserta">0</div>
                 </div>
             </div>
 
-            <!-- Card 4: Persentase Kehadiran -->
+            <!-- Card 4: Total Judul & Ketersediaan -->
             <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3.5">
-                <div class="w-11 h-11 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
-                    <i data-lucide="percent" class="w-5 h-5"></i>
+                <div class="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                    <i data-lucide="book-check" class="w-5 h-5"></i>
                 </div>
                 <div>
-                    <div class="text-xs text-purple-700 font-semibold uppercase tracking-wider">Tingkat Kehadiran</div>
-                    <div class="text-2xl font-extrabold text-purple-700" id="statRate">0%</div>
+                    <div class="text-xs text-indigo-700 font-semibold uppercase tracking-wider">Judul Terisi / Total</div>
+                    <div class="text-2xl font-extrabold text-indigo-700"><span id="statJudulTerisi">0</span>/<span id="statTotalJudul">0</span></div>
                 </div>
             </div>
         </div>
@@ -224,13 +240,13 @@
                     <div class="p-4 bg-slate-900 text-white flex items-center justify-between">
                         <div class="flex items-center gap-2">
                             <span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping"></span>
-                            <h2 class="font-bold text-sm sm:text-base">Kamera Pemindai QR Code</h2>
+                            <h2 class="font-bold text-sm sm:text-base">Kamera Pemindai QR Code Presenter</h2>
                         </div>
                         <div class="flex items-center gap-2">
-                            <select id="cameraSelect" class="bg-slate-800 text-white text-xs px-2.5 py-1.5 rounded-lg border border-slate-700 focus:outline-none focus:ring-1 focus:ring-emerald-500 max-w-[160px] sm:max-w-xs">
+                            <select id="cameraSelect" class="bg-slate-800 text-white text-xs px-2.5 py-1.5 rounded-lg border border-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 max-w-[160px] sm:max-w-xs">
                                 <option value="">Pilih Kamera...</option>
                             </select>
-                            <button id="toggleCameraBtn" onclick="toggleScanner()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition flex items-center gap-1.5">
+                            <button id="toggleCameraBtn" onclick="toggleScanner()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition flex items-center gap-1.5">
                                 <i data-lucide="camera" class="w-3.5 h-3.5"></i>
                                 <span id="cameraBtnLabel">Nyalakan Kamera</span>
                             </button>
@@ -238,10 +254,8 @@
                     </div>
 
                     <div class="p-4 flex-1 flex flex-col justify-center items-center bg-slate-950 min-h-[320px] sm:min-h-[400px] relative">
-                        <!-- Scanner Canvas Container -->
                         <div id="reader" class="w-full max-w-sm sm:max-w-md mx-auto overflow-hidden rounded-2xl"></div>
 
-                        <!-- Placeholder when camera is off -->
                         <div id="cameraPlaceholder" class="text-center p-6 text-slate-400 space-y-3">
                             <div class="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center mx-auto text-slate-500">
                                 <i data-lucide="camera-off" class="w-8 h-8"></i>
@@ -259,7 +273,7 @@
                         <div class="flex flex-col sm:flex-row gap-2">
                             <div class="flex-1 flex gap-2">
                                 <input type="text" id="manualQrInput" placeholder="Ketik 10 Karakter Kode QR..." maxlength="10"
-                                    class="flex-1 uppercase font-mono tracking-wider px-3 py-2 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white">
+                                    class="flex-1 uppercase font-mono tracking-wider px-3 py-2 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white">
                                 <button onclick="submitManualCode()" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl transition flex items-center gap-1">
                                     <i data-lucide="send" class="w-3.5 h-3.5"></i>
                                     <span>Verifikasi</span>
@@ -267,7 +281,7 @@
                             </div>
                             <div class="flex items-center">
                                 <input type="file" id="qrFileInput" accept="image/*" class="hidden" onchange="handleQrFileUpload(this)">
-                                <button onclick="document.getElementById('qrFileInput').click()" type="button" class="w-full sm:w-auto px-3.5 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 border border-emerald-300">
+                                <button onclick="document.getElementById('qrFileInput').click()" type="button" class="w-full sm:w-auto px-3.5 py-2 bg-blue-100 hover:bg-blue-200 text-blue-800 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 border border-blue-300">
                                     <i data-lucide="image" class="w-3.5 h-3.5"></i>
                                     <span>Pilih Gambar / Foto QR</span>
                                 </button>
@@ -281,7 +295,7 @@
                     <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex-1 flex flex-col">
                         <div class="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
                             <div class="flex items-center gap-2">
-                                <i data-lucide="clipboard-check" class="w-4 h-4 text-emerald-600"></i>
+                                <i data-lucide="clipboard-check" class="w-4 h-4 text-blue-600"></i>
                                 <h2 class="font-bold text-sm text-slate-800">Hasil Pemindaian Terakhir</h2>
                             </div>
                             <span id="scanStatusBadge" class="px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600">
@@ -290,36 +304,42 @@
                         </div>
 
                         <div class="p-6 flex-1 flex flex-col justify-center" id="scanResultContainer">
-                            <!-- Initial Empty State -->
                             <div id="scanEmptyState" class="text-center py-10 space-y-3">
-                                <div class="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
+                                <div class="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
                                     <i data-lucide="scan" class="w-8 h-8 animate-pulse"></i>
                                 </div>
                                 <div>
                                     <p class="font-bold text-slate-700 text-sm">Arahkan Kamera ke QR Code</p>
                                     <p class="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
-                                        Informasi pendaftar akan langsung muncul di sini dan statusnya otomatis berubah menjadi <strong>Peserta Hadir</strong>.
+                                        Informasi presenter akan langsung muncul di sini dan statusnya otomatis tercatat sebagai <strong>Hadir</strong>.
                                     </p>
                                 </div>
                             </div>
 
                             <!-- Result Card (Populated dynamically) -->
                             <div id="scanResultCard" class="hidden space-y-5 animate-in fade-in zoom-in duration-200">
-                                <div id="resultBanner" class="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-center">
-                                    <div id="resultIcon" class="w-12 h-12 rounded-full bg-emerald-600 text-white flex items-center justify-center mx-auto mb-2 shadow-md">
+                                <div id="resultBanner" class="p-4 rounded-2xl bg-blue-50 border border-blue-200 text-center">
+                                    <div id="resultIcon" class="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center mx-auto mb-2 shadow-md">
                                         <i data-lucide="check" class="w-6 h-6 stroke-[3]"></i>
                                     </div>
-                                    <h3 id="resultTitle" class="text-base font-extrabold text-emerald-900">BERHASIL ABSENSI!</h3>
-                                    <p id="resultSubtitle" class="text-xs text-emerald-700 mt-0.5">Status diubah menjadi Peserta (Hadir)</p>
+                                    <h3 id="resultTitle" class="text-base font-extrabold text-blue-900">BERHASIL PRESENSI!</h3>
+                                    <p id="resultSubtitle" class="text-xs text-blue-700 mt-0.5">Status diubah menjadi Hadir Presenter</p>
                                 </div>
 
                                 <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200 text-xs space-y-2.5 divide-y divide-slate-200/80">
                                     <div class="flex justify-between items-center pb-1">
-                                        <span class="text-slate-500 font-medium">Kode QR:</span>
-                                        <span id="resQrCode" class="font-mono text-sm font-extrabold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">-</span>
+                                        <span class="text-slate-500 font-medium">Kode Tiket:</span>
+                                        <span id="resQrCode" class="font-mono text-sm font-extrabold px-2 py-0.5 rounded bg-blue-100 text-blue-800">-</span>
+                                    </div>
+                                    <div class="pt-2 bg-blue-50/80 -mx-4 px-4 py-2 border-y border-blue-100 text-left">
+                                        <div class="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Judul Presentasi:</div>
+                                        <div id="resJudul" class="font-bold text-xs text-slate-900 mt-0.5 leading-snug">-</div>
+                                        <div class="text-[11px] text-blue-700 font-mono mt-0.5 font-semibold">
+                                            Ruangan: <span id="resRuangan">-</span>
+                                        </div>
                                     </div>
                                     <div class="flex justify-between items-center pt-2">
-                                        <span class="text-slate-500 font-medium">Nama Lengkap:</span>
+                                        <span class="text-slate-500 font-medium">Nama Presenter:</span>
                                         <span id="resNama" class="font-bold text-slate-900 text-right text-sm">-</span>
                                     </div>
                                     <div class="flex justify-between items-center pt-2">
@@ -328,18 +348,18 @@
                                     </div>
                                     <div class="flex justify-between items-center pt-2">
                                         <span class="text-slate-500 font-medium">No. HP / WA:</span>
-                                        <span id="resHp" class="font-bold font-mono text-emerald-700">-</span>
+                                        <span id="resHp" class="font-bold font-mono text-blue-700">-</span>
                                     </div>
                                     <div class="flex justify-between items-center pt-2">
                                         <span class="text-slate-500 font-medium">Institusi:</span>
                                         <span id="resInstitusi" class="font-bold text-slate-800 text-right">-</span>
                                     </div>
                                     <div class="flex justify-between items-center pt-2">
-                                        <span class="text-slate-500 font-medium">Pekerjaan:</span>
-                                        <span id="resPekerjaan" class="font-semibold text-emerald-700 bg-white px-2 py-0.5 rounded border border-slate-200">-</span>
+                                        <span class="text-slate-500 font-medium">Profesi:</span>
+                                        <span id="resPekerjaan" class="font-semibold text-blue-700 bg-white px-2 py-0.5 rounded border border-slate-200">-</span>
                                     </div>
                                     <div class="flex justify-between items-center pt-2">
-                                        <span class="text-slate-500 font-medium">Waktu Absen:</span>
+                                        <span class="text-slate-500 font-medium">Waktu Presensi:</span>
                                         <span id="resWaktu" class="font-semibold text-slate-700">-</span>
                                     </div>
                                 </div>
@@ -347,7 +367,7 @@
                                 <div class="text-center">
                                     <button onclick="resetScanCard()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition inline-flex items-center gap-1.5">
                                         <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
-                                        <span>Siap Scan Pendaftar Berikutnya</span>
+                                        <span>Siap Scan Presenter Berikutnya</span>
                                     </button>
                                 </div>
                             </div>
@@ -358,7 +378,7 @@
         </div>
 
         <!-- ========================================================================= -->
-        <!-- SECTION 2: INFORMASI PESERTA (MENU 2 DENGAN SUB-MENU SAMPING)             -->
+        <!-- SECTION 2: DATA PRESENTER (MENU 2 DENGAN SUB-MENU SAMPING)                -->
         <!-- ========================================================================= -->
         <div id="sectionInfo" class="hidden space-y-6">
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -367,7 +387,6 @@
                     <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
                         <div class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 px-2">Kategori Kehadiran</div>
                         <nav class="space-y-1.5">
-                            <!-- Sub-menu 1: Pendaftar (Belum Hadir) -->
                             <button id="tabPendaftarBtn" onclick="switchInfoSubTab('pendaftar')"
                                 class="w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-left text-xs sm:text-sm font-bold transition-all bg-amber-50 text-amber-900 border border-amber-200 shadow-sm">
                                 <div class="flex items-center gap-2.5">
@@ -376,21 +395,20 @@
                                     </div>
                                     <div>
                                         <div class="leading-tight">Pendaftar</div>
-                                        <div class="text-[11px] font-normal text-amber-700">Belum Hadir</div>
+                                        <div class="text-[11px] font-normal text-amber-700">Belum Presensi</div>
                                     </div>
                                 </div>
                                 <span id="badgeSubPendaftar" class="px-2 py-0.5 rounded-full text-xs font-extrabold bg-amber-200 text-amber-900">0</span>
                             </button>
 
-                            <!-- Sub-menu 2: Peserta (Sudah Hadir) -->
                             <button id="tabPesertaBtn" onclick="switchInfoSubTab('peserta')"
                                 class="w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-left text-xs sm:text-sm font-bold transition-all text-slate-700 hover:bg-slate-100">
                                 <div class="flex items-center gap-2.5">
-                                    <div class="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center">
+                                    <div class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center">
                                         <i data-lucide="check-circle" class="w-4 h-4"></i>
                                     </div>
                                     <div>
-                                        <div class="leading-tight">Peserta</div>
+                                        <div class="leading-tight">Presenter Hadir</div>
                                         <div class="text-[11px] font-normal text-slate-500">Sudah Scan Hadir</div>
                                     </div>
                                 </div>
@@ -402,10 +420,10 @@
                     <!-- Export and Import Utility Box -->
                     <div class="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-2xl p-4 shadow-sm space-y-3">
                         <div class="text-xs font-bold uppercase tracking-wider text-slate-400">Ekspor & Impor Data</div>
-                        <p class="text-xs text-slate-300">Backup atau restore data seminar dalam format Excel / CSV</p>
+                        <p class="text-xs text-slate-300">Backup atau restore data presenter beserta judul & ruangan</p>
                         <div class="space-y-2 pt-1">
                             <a id="exportCurrentBtn" href="{{ request.script_root }}/api/export-csv?status=pendaftar"
-                                class="w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center justify-center gap-2">
+                                class="w-full py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition flex items-center justify-center gap-2">
                                 <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
                                 <span id="exportBtnLabel">Export CSV Pendaftar</span>
                             </a>
@@ -415,9 +433,9 @@
                                 <span>Export Semua Data</span>
                             </a>
                             <button type="button" onclick="openImportModal()"
-                                class="w-full py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-sm">
+                                class="w-full py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-sm">
                                 <i data-lucide="file-up" class="w-3.5 h-3.5"></i>
-                                <span>📥 Impor Data dari CSV</span>
+                                <span>📥 Impor Presenter dari CSV</span>
                             </button>
                         </div>
                     </div>
@@ -425,40 +443,38 @@
 
                 <!-- Right Table & Data Area (9 cols) -->
                 <div class="lg:col-span-9 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
-                    <!-- Table Controls Header -->
                     <div class="p-4 sm:p-5 border-b border-slate-200 bg-slate-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div>
                             <h2 id="tableTitle" class="text-lg font-black text-slate-900 flex items-center gap-2">
                                 <span class="w-3 h-3 rounded-full bg-amber-500"></span>
-                                Daftar Pendaftar (Belum Hadir)
+                                Daftar Pendaftar Presenter (Belum Hadir)
                             </h2>
                             <p id="tableSubtitle" class="text-xs text-slate-500 mt-0.5">
-                                Menampilkan data orang yang sudah mendaftar namun belum melakukan absensi pemindaian QR Code.
+                                Menampilkan data presenter yang telah mendaftar namun belum scan absensi di ruangan seminar.
                             </p>
                         </div>
 
                         <!-- Search and Filters -->
                         <div class="flex flex-wrap items-center gap-2">
-                            <div class="relative flex-1 sm:w-48">
-                                <input type="text" id="searchInput" placeholder="Cari nama, no. identitas, no HP, inst..."
-                                    class="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white">
+                            <div class="relative flex-1 sm:w-44">
+                                <input type="text" id="searchInput" placeholder="Cari nama, NIM, judul..."
+                                    class="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white">
                                 <div class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400">
                                     <i data-lucide="search" class="w-3.5 h-3.5"></i>
                                 </div>
                             </div>
 
-                            <select id="filterPekerjaan" class="px-2.5 py-1.5 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 bg-white">
+                            <select id="filterRuangan" class="px-2.5 py-1.5 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 bg-white">
+                                <option value="Semua">Semua Ruangan</option>
+                            </select>
+
+                            <select id="filterPekerjaan" class="px-2.5 py-1.5 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 bg-white">
                                 <option value="Semua">Semua Profesi</option>
-                                <option value="Mahasiswa">Mahasiswa</option>
                                 <option value="Dosen">Dosen</option>
+                                <option value="Mahasiswa">Mahasiswa</option>
                                 <option value="Praktisi">Praktisi</option>
                                 <option value="Lainnya">Lainnya</option>
                             </select>
-
-                            <button onclick="openImportModal()" class="px-2.5 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-semibold transition flex items-center gap-1.5" title="Impor Data dari CSV">
-                                <i data-lucide="upload" class="w-3.5 h-3.5"></i>
-                                <span class="hidden sm:inline">Impor CSV</span>
-                            </button>
 
                             <button onclick="loadParticipantsData()" class="p-1.5 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-600 transition" title="Muat Ulang Data">
                                 <i data-lucide="rotate-cw" class="w-4 h-4"></i>
@@ -466,26 +482,93 @@
                         </div>
                     </div>
 
+                    <!-- Bulk Actions Bar -->
+                    <div id="partBulkActionBar" class="hidden items-center justify-between bg-blue-50/90 border-b border-blue-200 px-4 py-2.5 transition-all">
+                        <div class="flex items-center gap-2 text-xs font-bold text-blue-900">
+                            <span id="partSelectedCountBadge" class="px-2 py-0.5 rounded-full bg-blue-600 text-white text-xs font-extrabold">0</span>
+                            <span>Presenter terpilih</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="confirmBulkDeletePart()" type="button" class="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-xs">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                <span>Hapus Terpilih (<span id="partBulkDeleteCount">0</span>)</span>
+                            </button>
+                            <button onclick="clearPartSelection()" type="button" class="px-2.5 py-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-medium transition">
+                                Batal
+                            </button>
+                        </div>
+                    </div>
+
                     <!-- Table Content -->
                     <div class="overflow-x-auto flex-1">
                         <table class="w-full text-left text-xs border-collapse">
-                            <thead class="bg-slate-100/80 text-slate-700 font-bold uppercase tracking-wider border-b border-slate-200">
+                            <thead class="bg-slate-100/90 text-slate-700 font-bold uppercase tracking-wider border-b border-slate-200 select-none">
                                 <tr>
-                                    <th class="py-3 px-4 w-12 text-center">No</th>
-                                    <th class="py-3 px-4">Kode QR</th>
-                                    <th class="py-3 px-4">No. Identitas</th>
-                                    <th class="py-3 px-4">Nama Lengkap</th>
-                                    <th class="py-3 px-4">No. HP / WA</th>
-                                    <th class="py-3 px-4">Institusi</th>
-                                    <th class="py-3 px-4">Pekerjaan</th>
-                                    <th class="py-3 px-4" id="colWaktuHeader">Waktu Daftar</th>
-                                    <th class="py-3 px-4 text-center w-28">Aksi</th>
+                                    <th class="py-3 px-3 w-10 text-center">
+                                        <input type="checkbox" id="partSelectAll" onchange="toggleSelectAllPart(this)" title="Centang Semua"
+                                            class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer">
+                                    </th>
+                                    <th class="py-3 px-3 w-12 text-center cursor-pointer hover:bg-slate-200/70 transition" onclick="sortPartData('id')" title="Klik untuk mengurutkan">
+                                        <div class="flex items-center justify-center gap-1">
+                                            <span>No</span>
+                                            <i id="partSortIcon_id" data-lucide="arrow-up-down" class="w-3 h-3 text-slate-400"></i>
+                                        </div>
+                                    </th>
+                                    <th class="py-3 px-3 cursor-pointer hover:bg-slate-200/70 transition" onclick="sortPartData('qr_code')" title="Klik untuk mengurutkan">
+                                        <div class="flex items-center gap-1">
+                                            <span>Kode Tiket</span>
+                                            <i id="partSortIcon_qr_code" data-lucide="arrow-up-down" class="w-3 h-3 text-slate-400"></i>
+                                        </div>
+                                    </th>
+                                    <th class="py-3 px-3 cursor-pointer hover:bg-slate-200/70 transition" onclick="sortPartData('nim_nip')" title="Klik untuk mengurutkan">
+                                        <div class="flex items-center gap-1">
+                                            <span>No. Identitas</span>
+                                            <i id="partSortIcon_nim_nip" data-lucide="arrow-up-down" class="w-3 h-3 text-slate-400"></i>
+                                        </div>
+                                    </th>
+                                    <th class="py-3 px-3 cursor-pointer hover:bg-slate-200/70 transition" onclick="sortPartData('nama_lengkap')" title="Klik untuk mengurutkan">
+                                        <div class="flex items-center gap-1">
+                                            <span>Nama Presenter</span>
+                                            <i id="partSortIcon_nama_lengkap" data-lucide="arrow-up-down" class="w-3 h-3 text-slate-400"></i>
+                                        </div>
+                                    </th>
+                                    <th class="py-3 px-3 cursor-pointer hover:bg-slate-200/70 transition" onclick="sortPartData('judul_presentasi')" title="Klik untuk mengurutkan">
+                                        <div class="flex items-center gap-1">
+                                            <span>Judul Presentasi</span>
+                                            <i id="partSortIcon_judul_presentasi" data-lucide="arrow-up-down" class="w-3 h-3 text-slate-400"></i>
+                                        </div>
+                                    </th>
+                                    <th class="py-3 px-3 cursor-pointer hover:bg-slate-200/70 transition" onclick="sortPartData('ruangan')" title="Klik untuk mengurutkan">
+                                        <div class="flex items-center gap-1">
+                                            <span>Ruangan</span>
+                                            <i id="partSortIcon_ruangan" data-lucide="arrow-up-down" class="w-3 h-3 text-slate-400"></i>
+                                        </div>
+                                    </th>
+                                    <th class="py-3 px-3 cursor-pointer hover:bg-slate-200/70 transition" onclick="sortPartData('no_hp')" title="Klik untuk mengurutkan">
+                                        <div class="flex items-center gap-1">
+                                            <span>No. HP / WA</span>
+                                            <i id="partSortIcon_no_hp" data-lucide="arrow-up-down" class="w-3 h-3 text-slate-400"></i>
+                                        </div>
+                                    </th>
+                                    <th class="py-3 px-3 cursor-pointer hover:bg-slate-200/70 transition" onclick="sortPartData('institusi')" title="Klik untuk mengurutkan">
+                                        <div class="flex items-center gap-1">
+                                            <span>Institusi</span>
+                                            <i id="partSortIcon_institusi" data-lucide="arrow-up-down" class="w-3 h-3 text-slate-400"></i>
+                                        </div>
+                                    </th>
+                                    <th class="py-3 px-3 cursor-pointer hover:bg-slate-200/70 transition" onclick="sortPartData('time')" title="Klik untuk mengurutkan">
+                                        <div class="flex items-center gap-1">
+                                            <span id="colWaktuHeader">Waktu</span>
+                                            <i id="partSortIcon_time" data-lucide="arrow-up-down" class="w-3 h-3 text-slate-400"></i>
+                                        </div>
+                                    </th>
+                                    <th class="py-3 px-3 text-center w-24">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody id="participantTableBody" class="divide-y divide-slate-200">
                                 <tr>
-                                    <td colspan="9" class="text-center py-12 text-slate-400">
-                                        <i data-lucide="loader-2" class="w-6 h-6 animate-spin mx-auto mb-2 text-emerald-600"></i>
+                                    <td colspan="11" class="text-center py-12 text-slate-400">
+                                        <i data-lucide="loader-2" class="w-6 h-6 animate-spin mx-auto mb-2 text-blue-600"></i>
                                         Memuat data...
                                     </td>
                                 </tr>
@@ -495,61 +578,201 @@
 
                     <!-- Table Footer Pagination/Count -->
                     <div class="p-3 bg-slate-50 border-t border-slate-200 text-xs text-slate-500 flex justify-between items-center">
-                        <div>Menampilkan <span id="tableCount" class="font-bold text-slate-800">0</span> baris data</div>
-                        <div class="text-[11px] text-slate-400">Klik QR Code untuk melihat/unduh tiket</div>
+                        <div>Menampilkan <span id="tableCount" class="font-bold text-slate-800">0</span> baris presenter</div>
+                        <div class="text-[11px] text-slate-400">Klik Kode Tiket untuk melihat/unduh tiket</div>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- ========================================================================= -->
-        <!-- SECTION 3: PENGATURAN ACARA & PROFIL (MENU 3)                             -->
+        <!-- SECTION 3: KELOLA JUDUL & RUANGAN (MENU 3 - TAB BARU)                     -->
+        <!-- ========================================================================= -->
+        <div id="sectionPresentations" class="hidden space-y-6">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+                <!-- Header Banner -->
+                <div class="p-6 bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-11 h-11 rounded-xl bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-blue-300">
+                            <i data-lucide="book-open-check" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h2 class="font-extrabold text-lg text-white">Kelola Judul Presentasi & Ruangan</h2>
+                                <span class="px-2.5 py-0.5 rounded-full bg-blue-400/20 text-blue-200 border border-blue-400/30 text-[10px] font-bold uppercase tracking-wider">
+                                    1 Judul = 1 Presenter
+                                </span>
+                            </div>
+                            <p class="text-xs text-blue-200/80">Input atau impor daftar judul seminar. Judul ini akan muncul di formulir pendaftaran presenter.</p>
+                        </div>
+                    </div>
+
+                    <!-- Header Action Buttons -->
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button onclick="openAddPresentationModal()" type="button" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-sm transition flex items-center gap-1.5">
+                            <i data-lucide="plus" class="w-4 h-4"></i>
+                            <span>Tambah Judul Manual</span>
+                        </button>
+                        <button onclick="openImportPresentationModal()" type="button" class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-sm transition flex items-center gap-1.5">
+                            <i data-lucide="upload" class="w-4 h-4"></i>
+                            <span>Impor CSV Judul</span>
+                        </button>
+                        <a href="https://docs.google.com/spreadsheets/d/1EHrfQH0qMvrTPE1OOtHUb959HQfnVVj13unNSs25VJI/edit?usp=sharing" target="_blank" rel="noopener noreferrer" class="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-medium transition flex items-center gap-1.5 border border-white/20" title="Buka Template Google Sheets">
+                            <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                            <span>Template TSV (Google Sheets)</span>
+                        </a>
+                        <button onclick="confirmResetPresentations()" type="button" class="px-3 py-2 rounded-xl bg-rose-600/80 hover:bg-rose-600 text-white text-xs font-medium transition flex items-center gap-1.5" title="Hapus Semua Judul">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                            <span>Hapus Semua</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Secondary Filter & Search Bar -->
+                <div class="p-4 border-b border-slate-200 bg-slate-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div class="flex items-center gap-3 text-xs text-slate-600 font-medium">
+                        <span>Total: <strong id="presStatTotal" class="text-slate-900 font-bold">0</strong> Judul</span>
+                        <span class="text-slate-300">|</span>
+                        <span class="text-blue-700">Terisi: <strong id="presStatTerisi" class="font-bold">0</strong></span>
+                        <span class="text-slate-300">|</span>
+                        <span class="text-emerald-700">Tersedia: <strong id="presStatTersedia" class="font-bold">0</strong></span>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2">
+                        <div class="relative flex-1 sm:w-56">
+                            <input type="text" id="presSearchInput" placeholder="Cari judul, ruangan, atau presenter..."
+                                class="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white">
+                            <div class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400">
+                                <i data-lucide="search" class="w-3.5 h-3.5"></i>
+                            </div>
+                        </div>
+
+                        <select id="presFilterRuangan" class="px-2.5 py-1.5 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 bg-white">
+                            <option value="Semua">Semua Ruangan</option>
+                        </select>
+
+                        <button onclick="loadPresentationsAdmin()" class="p-1.5 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-600 transition" title="Muat Ulang Judul">
+                            <i data-lucide="rotate-cw" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Bulk Actions Bar -->
+                <div id="presBulkActionBar" class="hidden items-center justify-between bg-blue-50/90 border-b border-blue-200 px-4 py-2.5 transition-all">
+                    <div class="flex items-center gap-2 text-xs font-bold text-blue-900">
+                        <span id="presSelectedCountBadge" class="px-2 py-0.5 rounded-full bg-blue-600 text-white text-xs font-extrabold">0</span>
+                        <span>Judul dipilih</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="confirmBulkDeletePres()" type="button" class="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-xs">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                            <span>Hapus Terpilih (<span id="presBulkDeleteCount">0</span>)</span>
+                        </button>
+                        <button onclick="clearPresSelection()" type="button" class="px-2.5 py-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-medium transition">
+                            Batal
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Table Content -->
+                <div class="overflow-x-auto flex-1">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead class="bg-slate-100 text-slate-700 font-bold uppercase tracking-wider border-b border-slate-200 select-none">
+                            <tr>
+                                <th class="py-3 px-3 w-10 text-center">
+                                    <input type="checkbox" id="presSelectAll" onchange="toggleSelectAllPres(this)" title="Centang Semua"
+                                        class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer">
+                                </th>
+                                <th class="py-3 px-3 w-12 text-center cursor-pointer hover:bg-slate-200/70 transition" onclick="sortPresData('id')" title="Klik untuk mengurutkan">
+                                    <div class="flex items-center justify-center gap-1">
+                                        <span>No</span>
+                                        <i id="presSortIcon_id" data-lucide="arrow-up-down" class="w-3 h-3 text-slate-400"></i>
+                                    </div>
+                                </th>
+                                <th class="py-3 px-4 cursor-pointer hover:bg-slate-200/70 transition" onclick="sortPresData('judul')" title="Klik untuk mengurutkan">
+                                    <div class="flex items-center gap-1">
+                                        <span>Judul Presentasi</span>
+                                        <i id="presSortIcon_judul" data-lucide="arrow-up-down" class="w-3 h-3 text-slate-400"></i>
+                                    </div>
+                                </th>
+                                <th class="py-3 px-4 w-40 cursor-pointer hover:bg-slate-200/70 transition" onclick="sortPresData('ruangan')" title="Klik untuk mengurutkan">
+                                    <div class="flex items-center gap-1">
+                                        <span>Ruangan</span>
+                                        <i id="presSortIcon_ruangan" data-lucide="arrow-up-down" class="w-3 h-3 text-slate-400"></i>
+                                    </div>
+                                </th>
+                                <th class="py-3 px-4 w-64 cursor-pointer hover:bg-slate-200/70 transition" onclick="sortPresData('is_taken')" title="Klik untuk mengurutkan">
+                                    <div class="flex items-center gap-1">
+                                        <span>Status Presenter</span>
+                                        <i id="presSortIcon_is_taken" data-lucide="arrow-up-down" class="w-3 h-3 text-slate-400"></i>
+                                    </div>
+                                </th>
+                                <th class="py-3 px-4 text-center w-28">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="presentationsTableBody" class="divide-y divide-slate-200">
+                            <tr>
+                                <td colspan="6" class="text-center py-12 text-slate-400">
+                                    <i data-lucide="loader-2" class="w-6 h-6 animate-spin mx-auto mb-2 text-blue-600"></i>
+                                    Memuat daftar judul...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Footer Summary -->
+                <div class="p-3 bg-slate-50 border-t border-slate-200 text-xs text-slate-500 flex justify-between items-center">
+                    <div>Menampilkan <span id="presTableCount" class="font-bold text-slate-800">0</span> data judul presentasi</div>
+                    <div class="text-[11px] text-slate-400">Judul yang sudah terisi otomatis dinonaktifkan di formulir pendaftaran</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================================================= -->
+        <!-- SECTION 4: PENGATURAN ACARA & PROFIL (MENU 4)                             -->
         <!-- ========================================================================= -->
         <div id="sectionSettings" class="hidden space-y-6">
-            <!-- Event Identity Card -->
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                 <div class="p-6 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white flex items-center justify-between">
                     <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-xl bg-white/10 backdrop-blur flex items-center justify-center text-emerald-400">
+                        <div class="w-10 h-10 rounded-xl bg-white/10 backdrop-blur flex items-center justify-center text-blue-400">
                             <i data-lucide="sliders" class="w-5 h-5"></i>
                         </div>
                         <div>
                             <h2 class="font-bold text-base sm:text-lg">Pengaturan Identitas Acara</h2>
-                            <p class="text-xs text-slate-300">Atur nama seminar/workshop dan logo resmi yang tampil pada form dan tiket</p>
+                            <p class="text-xs text-slate-300">Atur nama seminar dan logo resmi yang tampil pada form dan tiket presenter</p>
                         </div>
                     </div>
-                    <span class="px-3 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-semibold rounded-full hidden sm:inline-block">
+                    <span class="px-3 py-1 bg-blue-500/20 text-blue-300 border border-blue-500/30 text-xs font-semibold rounded-full hidden sm:inline-block">
                         Branding Acara
                     </span>
                 </div>
 
                 <form id="settingsForm" class="p-6 sm:p-8 space-y-6" enctype="multipart/form-data">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <!-- Column 1: Input Fields -->
                         <div class="space-y-6">
-                            <!-- Event Name -->
                             <div>
                                 <label for="inputEventName" class="block text-sm font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
-                                    <i data-lucide="type" class="w-4 h-4 text-emerald-600"></i>
+                                    <i data-lucide="type" class="w-4 h-4 text-blue-600"></i>
                                     Nama Acara / Seminar <span class="text-rose-500">*</span>
                                 </label>
                                 <input type="text" id="inputEventName" name="event_name" required
                                     value="{{ event_settings.event_name }}"
                                     placeholder="Contoh: Seminar Nasional AI & Data Science 2026"
-                                    class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-slate-800 text-sm transition shadow-sm">
-                                <p class="text-xs text-slate-500 mt-1">Nama ini akan tampil di judul website, formulir pendaftaran, tiket, dan laporan.</p>
+                                    class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-800 text-sm transition shadow-sm">
+                                <p class="text-xs text-slate-500 mt-1">Nama ini akan tampil di judul website, formulir pendaftaran, tiket presenter, dan laporan.</p>
                             </div>
 
-                            <!-- Event Logo File Upload -->
                             <div>
                                 <label class="block text-sm font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
-                                    <i data-lucide="image" class="w-4 h-4 text-emerald-600"></i>
+                                    <i data-lucide="image" class="w-4 h-4 text-blue-600"></i>
                                     Logo Resmi Acara
                                 </label>
-                                <div class="border-2 border-dashed border-slate-300 hover:border-emerald-500 rounded-2xl p-4 text-center bg-slate-50 transition cursor-pointer" onclick="document.getElementById('inputEventLogo').click()">
+                                <div class="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-2xl p-4 text-center bg-slate-50 transition cursor-pointer" onclick="document.getElementById('inputEventLogo').click()">
                                     <input type="file" id="inputEventLogo" name="event_logo" accept="image/*" class="hidden" onchange="handleLogoPreview(this)">
                                     <div class="w-12 h-12 rounded-xl bg-white text-slate-400 flex items-center justify-center mx-auto mb-2 border border-slate-200 shadow-sm">
-                                        <i data-lucide="upload-cloud" class="w-6 h-6 text-emerald-600"></i>
+                                        <i data-lucide="upload-cloud" class="w-6 h-6 text-blue-600"></i>
                                     </div>
                                     <p class="text-xs font-semibold text-slate-700">Klik untuk memilih file logo baru</p>
                                     <p class="text-[11px] text-slate-400 mt-0.5">Format didukung: PNG, JPG, JPEG, SVG, WEBP (Maksimal 5MB)</p>
@@ -564,40 +787,38 @@
                             </div>
                         </div>
 
-                        <!-- Column 2: Live Preview Card -->
                         <div>
                             <label class="block text-sm font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
-                                <i data-lucide="eye" class="w-4 h-4 text-emerald-600"></i>
+                                <i data-lucide="eye" class="w-4 h-4 text-blue-600"></i>
                                 Pratinjau Tampilan (Live Preview)
                             </label>
                             <div class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-6 text-white border border-slate-700 shadow-lg text-center space-y-3">
                                 <div class="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur p-2 mx-auto flex items-center justify-center border border-white/20 shadow-md">
                                     <img id="previewLogoImg" src="{{ event_settings.event_logo if event_settings.event_logo else '' }}" alt="Preview Logo" class="w-full h-full object-contain {% if not event_settings.event_logo %}hidden{% endif %}">
                                     <div id="previewDefaultIcon" class="{% if event_settings.event_logo %}hidden{% endif %} text-white flex items-center justify-center">
-                                        <i data-lucide="qr-code" class="w-8 h-8 text-emerald-400"></i>
+                                        <i data-lucide="presentation" class="w-8 h-8 text-blue-400"></i>
                                     </div>
                                 </div>
 
                                 <div>
-                                    <span class="px-2.5 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold uppercase tracking-wider rounded-full">
-                                        E-Ticket Absensi
+                                    <span class="px-2.5 py-0.5 bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[10px] font-bold uppercase tracking-wider rounded-full">
+                                        E-Ticket Presenter
                                     </span>
                                     <h3 id="previewEventName" class="text-lg font-black tracking-tight mt-1.5">{{ event_settings.event_name }}</h3>
-                                    <p class="text-xs text-slate-300 mt-0.5">Sistem Absensi & Registrasi QR Code</p>
+                                    <p class="text-xs text-slate-300 mt-0.5">Sistem Absensi Presenter Seminar</p>
                                 </div>
 
                                 <div class="pt-3 border-t border-slate-700/80 text-[11px] text-slate-400 flex items-center justify-center gap-1">
-                                    <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-400"></i>
+                                    <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-blue-400"></i>
                                     <span>Logo & nama acara langsung tersinkronisasi</span>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Submit Button -->
                     <div class="pt-4 border-t border-slate-200 flex justify-end gap-3">
                         <button type="submit" id="saveSettingsBtn"
-                            class="py-2.5 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md shadow-emerald-600/25 transition flex items-center gap-2">
+                            class="py-2.5 px-6 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md shadow-blue-600/25 transition flex items-center gap-2">
                             <i data-lucide="save" class="w-4 h-4"></i>
                             <span id="saveSettingsBtnText">Simpan Perubahan Acara</span>
                         </button>
@@ -608,7 +829,7 @@
             <!-- Profile & Personal Password Card -->
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                 <div class="p-6 bg-slate-50 border-b border-slate-200 flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                    <div class="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center">
                         <i data-lucide="key-round" class="w-5 h-5"></i>
                     </div>
                     <div>
@@ -620,19 +841,19 @@
                 <form id="changePassForm" class="p-6 sm:p-8 space-y-4 max-w-xl">
                     <div>
                         <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Nama Tampilan</label>
-                        <input type="text" id="myNama" value="{{ admin_name }}" placeholder="Nama Anda" class="w-full px-4 py-2 rounded-xl border border-slate-300 text-slate-800 text-sm focus:ring-2 focus:ring-emerald-500">
+                        <input type="text" id="myNama" value="{{ admin_name }}" placeholder="Nama Anda" class="w-full px-4 py-2 rounded-xl border border-slate-300 text-slate-800 text-sm focus:ring-2 focus:ring-blue-500">
                     </div>
                     <div>
                         <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Password Saat Ini <span class="text-rose-500">*</span></label>
-                        <input type="password" id="currPassword" required placeholder="••••••••" class="w-full px-4 py-2 rounded-xl border border-slate-300 text-slate-800 text-sm focus:ring-2 focus:ring-emerald-500">
+                        <input type="password" id="currPassword" required placeholder="••••••••" class="w-full px-4 py-2 rounded-xl border border-slate-300 text-slate-800 text-sm focus:ring-2 focus:ring-blue-500">
                     </div>
                     <div>
                         <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Password Baru</label>
-                        <input type="password" id="newPassword" placeholder="•••••••• (kosongkan jika tidak diubah)" class="w-full px-4 py-2 rounded-xl border border-slate-300 text-slate-800 text-sm focus:ring-2 focus:ring-emerald-500">
+                        <input type="password" id="newPassword" placeholder="•••••••• (kosongkan jika tidak diubah)" class="w-full px-4 py-2 rounded-xl border border-slate-300 text-slate-800 text-sm focus:ring-2 focus:ring-blue-500">
                     </div>
                     <div class="pt-2">
                         <button type="submit" class="py-2.5 px-5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition shadow flex items-center gap-1.5">
-                            <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i>
+                            <i data-lucide="shield-check" class="w-4 h-4 text-blue-400"></i>
                             <span>Simpan Perubahan Akun</span>
                         </button>
                     </div>
@@ -641,12 +862,11 @@
         </div>
 
         <!-- ========================================================================= -->
-        <!-- SECTION 4: MANAJEMEN ADMIN (MENU 4 - KHUSUS SUPER ADMIN)                  -->
+        <!-- SECTION 5: MANAJEMEN ADMIN (MENU 5 - KHUSUS SUPER ADMIN)                  -->
         <!-- ========================================================================= -->
         {% if is_superadmin %}
         <div id="sectionAdminUsers" class="hidden space-y-6">
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                <!-- Header -->
                 <div class="p-6 bg-gradient-to-r from-purple-950 via-purple-900 to-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div class="flex items-center gap-3">
                         <div class="w-11 h-11 rounded-xl bg-purple-500/20 border border-purple-400/30 flex items-center justify-center text-purple-300">
@@ -710,15 +930,125 @@
     <!-- Footer -->
     <footer class="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-500">
         <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-2">
-            <p>© 2026 SeminarPass. Sistem Registrasi & Absensi QR Code Seminar Nasional.</p>
+            <p>© 2026 PresenterPass. Sistem Registrasi & Absensi QR Code Presenter Seminar.</p>
             <p class="flex items-center gap-1">
                 <span>Status Console:</span>
-                <span class="inline-flex items-center gap-1 text-emerald-600 font-medium">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Terhubung
+                <span class="inline-flex items-center gap-1 text-blue-600 font-medium">
+                    <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span> Terhubung
                 </span>
             </p>
         </div>
     </footer>
+
+    <!-- ========================================================================= -->
+    <!-- MODALS SECTION                                                            -->
+    <!-- ========================================================================= -->
+
+    <!-- MODAL: TAMBAH / EDIT JUDUL PRESENTASI -->
+    <div id="presentationModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-4 border border-slate-100 animate-in fade-in zoom-in duration-200">
+            <div class="flex justify-between items-center pb-2 border-b border-slate-100">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center">
+                        <i data-lucide="book-plus" class="w-4 h-4"></i>
+                    </div>
+                    <h3 class="font-bold text-base text-slate-900" id="presentationModalTitle">Tambah Judul Presentasi</h3>
+                </div>
+                <button onclick="closePresentationModal()" class="text-slate-400 hover:text-slate-600">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form id="presentationForm" class="space-y-4 text-left">
+                <input type="hidden" id="modalPresId">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                        Judul Presentasi / Paper <span class="text-rose-500">*</span>
+                    </label>
+                    <textarea id="modalPresJudul" required rows="3" placeholder="Contoh: Penerapan Algoritma Deep Learning untuk Klasifikasi Citra Medis"
+                        class="w-full px-4 py-2 rounded-xl border border-slate-300 text-slate-800 text-sm focus:ring-2 focus:ring-blue-500"></textarea>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                        Ruangan / Room
+                    </label>
+                    <input type="text" id="modalPresRuangan" placeholder="Contoh: Ruang A / Lab 1 / Aud 2"
+                        class="w-full px-4 py-2 rounded-xl border border-slate-300 text-slate-800 text-sm focus:ring-2 focus:ring-blue-500">
+                    <p class="text-[11px] text-slate-400 mt-0.5">Opsional. Biarkan kosong atau isi dengan nama ruangan presentasi.</p>
+                </div>
+
+                <div class="flex gap-2 pt-3 border-t border-slate-100">
+                    <button type="button" onclick="closePresentationModal()" class="flex-1 py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition">
+                        Batal
+                    </button>
+                    <button type="submit" id="savePresBtn" class="flex-1 py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow">
+                        Simpan Judul
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: IMPOR CSV/TSV JUDUL PRESENTASI -->
+    <div id="importPresentationModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-100 animate-in fade-in zoom-in duration-200">
+            <div class="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white text-center relative">
+                <button onclick="closeImportPresentationModal()" class="absolute top-4 right-4 text-white/80 hover:text-white transition">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+                <div class="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center mx-auto mb-2 text-white">
+                    <i data-lucide="file-up" class="w-6 h-6 stroke-[2.5]"></i>
+                </div>
+                <h3 class="text-xl font-extrabold">Impor Daftar Judul (TSV / CSV)</h3>
+                <p class="text-xs text-blue-100 mt-1">Upload file TSV (Tab Delimited) atau CSV berisi daftar judul dan ruangan</p>
+            </div>
+
+            <form id="importPresentationCsvForm" class="p-6 space-y-5">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                        Pilih File TSV / CSV (.tsv, .csv, .txt)
+                    </label>
+                    <div class="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-2xl p-5 text-center bg-slate-50 hover:bg-blue-50/50 transition cursor-pointer" onclick="document.getElementById('presCsvFileInput').click()">
+                        <i data-lucide="upload-cloud" class="w-8 h-8 text-blue-600 mx-auto mb-2"></i>
+                        <span id="presCsvFileName" class="text-xs font-semibold text-slate-700 block">Klik untuk memilih file TSV / CSV</span>
+                        <span class="text-[11px] text-slate-400 mt-0.5 block">Kolom: Judul Presentasi [TAB] Ruangan</span>
+                        <input type="file" id="presCsvFileInput" name="file" accept=".tsv,.csv,.txt" class="hidden" required onchange="handlePresCsvFileSelect(this)">
+                    </div>
+                </div>
+
+                <div class="p-4 rounded-2xl bg-blue-50/90 border border-blue-200 text-xs text-blue-900 space-y-2">
+                    <div class="font-bold flex items-center justify-between text-blue-950">
+                        <span class="flex items-center gap-1.5 font-bold text-xs">
+                            <i data-lucide="file-spreadsheet" class="w-4 h-4 text-blue-600"></i> Panduan Ekspor TSV dari Google Sheets:
+                        </span>
+                        <a href="https://docs.google.com/spreadsheets/d/1EHrfQH0qMvrTPE1OOtHUb959HQfnVVj13unNSs25VJI/edit?usp=sharing" target="_blank" rel="noopener noreferrer"
+                            class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-[11px] transition shadow-xs">
+                            <span>Buka Template</span>
+                            <i data-lucide="external-link" class="w-3 h-3"></i>
+                        </a>
+                    </div>
+                    <ol class="list-decimal list-inside space-y-1 text-[11px] text-blue-900">
+                        <li>Buka tautan <strong>Template Google Sheets</strong> di atas.</li>
+                        <li>Isi data <strong>Judul Presentasi</strong> dan <strong>Ruangan</strong>.</li>
+                        <li>Di Google Sheets, klik menu: <strong>File &rarr; Download &rarr; Tab-separated values (.tsv)</strong>.</li>
+                        <li>Upload file <code>.tsv</code> yang telah diunduh ke form di atas.</li>
+                    </ol>
+                </div>
+
+                <div class="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
+                    <button type="button" onclick="closeImportPresentationModal()"
+                        class="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition">
+                        Batal
+                    </button>
+                    <button type="submit" id="btnSubmitPresImport"
+                        class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition flex items-center gap-2 shadow-md shadow-blue-600/30">
+                        <i data-lucide="upload" class="w-4 h-4"></i>
+                        <span id="btnSubmitPresImportText">Mulai Impor Judul</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <!-- MODAL: RESET PASSWORD ADMIN (SUPER ADMIN PRIVILEGE) -->
     <div id="resetPassModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
@@ -809,37 +1139,36 @@
     </div>
 
     <!-- MODAL VIEW QR CODE -->
-    <div id="qrModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center space-y-4 border border-slate-100 animate-in fade-in zoom-in duration-200">
-            <div class="flex justify-between items-center pb-2 border-b border-slate-100">
-                <h3 class="font-bold text-sm text-slate-800" id="qrModalTitle">QR Code Tiket</h3>
+    <div id="qrModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden overflow-y-auto p-3 sm:p-4 flex items-center justify-center">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-5 sm:p-6 text-center space-y-4 border border-slate-100 animate-in fade-in zoom-in duration-200 my-auto max-h-[92vh] flex flex-col overflow-y-auto custom-scrollbar">
+            <div class="flex justify-between items-center pb-2 border-b border-slate-100 shrink-0">
+                <h3 class="font-bold text-sm text-slate-800" id="qrModalTitle">QR Code Tiket Presenter</h3>
                 <button onclick="closeQrModal()" class="text-slate-400 hover:text-slate-600">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
 
-            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 inline-block">
-                <img id="qrModalImage" src="" alt="QR" class="w-48 h-48 object-contain mx-auto">
-                <div class="mt-2 font-mono text-lg font-bold tracking-widest text-slate-900" id="qrModalCode">-</div>
+            <div class="bg-slate-50 p-3 sm:p-4 rounded-2xl border border-slate-200 inline-block">
+                <img id="qrModalImage" src="" alt="QR" class="w-40 h-40 sm:w-48 sm:h-48 object-contain mx-auto">
+                <div class="mt-2 font-mono text-base sm:text-lg font-bold tracking-widest text-slate-900" id="qrModalCode">-</div>
             </div>
 
             <p class="text-xs text-slate-600 font-semibold" id="qrModalName">-</p>
 
-            <div class="grid grid-cols-2 gap-2 pt-2">
-                <a id="qrModalDownload" href="#" download="" class="py-2 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition flex items-center justify-center gap-1.5">
+            <div class="grid grid-cols-2 gap-2 pt-2 shrink-0">
+                <a id="qrModalDownload" href="#" download="" class="py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition flex items-center justify-center gap-1.5 min-h-[40px]">
                     <i data-lucide="download" class="w-3.5 h-3.5"></i> Download
                 </a>
-                <a id="qrModalTicketLink" href="#" target="_blank" class="py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition flex items-center justify-center gap-1.5 shadow">
+                <a id="qrModalTicketLink" href="#" target="_blank" class="py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition flex items-center justify-center gap-1.5 shadow min-h-[40px]">
                     <i data-lucide="external-link" class="w-3.5 h-3.5"></i> E-Ticket
                 </a>
             </div>
         </div>
     </div>
 
-    <!-- IMPORT CSV MODAL -->
+    <!-- IMPORT TSV/CSV DATA PRESENTER MODAL -->
     <div id="importCsvModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-100 animate-in fade-in zoom-in duration-200">
-            <!-- Modal Header -->
             <div class="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white text-center relative">
                 <button onclick="closeImportModal()" class="absolute top-4 right-4 text-white/80 hover:text-white transition">
                     <i data-lucide="x" class="w-6 h-6"></i>
@@ -847,25 +1176,23 @@
                 <div class="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center mx-auto mb-2 text-white">
                     <i data-lucide="file-up" class="w-6 h-6 stroke-[2.5]"></i>
                 </div>
-                <h3 class="text-xl font-extrabold">Impor Data Peserta dari CSV</h3>
-                <p class="text-xs text-blue-100 mt-1">Restore atau tambahkan data pendaftar & peserta sekaligus dari file CSV backup</p>
+                <h3 class="text-xl font-extrabold">Impor Data Presenter (TSV / CSV)</h3>
+                <p class="text-xs text-blue-100 mt-1">Restore atau tambahkan data pendaftar & presenter sekaligus dari file backup TSV / CSV</p>
             </div>
 
             <form id="importCsvForm" class="p-6 space-y-5">
-                <!-- File Picker Area -->
                 <div>
                     <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                        Pilih File Backup CSV (.csv)
+                        Pilih File Backup TSV / CSV (.tsv, .csv, .txt)
                     </label>
                     <div class="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-2xl p-5 text-center bg-slate-50 hover:bg-blue-50/50 transition cursor-pointer" onclick="document.getElementById('csvFileInput').click()">
                         <i data-lucide="upload-cloud" class="w-8 h-8 text-blue-600 mx-auto mb-2"></i>
-                        <span id="csvFileName" class="text-xs font-semibold text-slate-700 block">Klik untuk memilih file CSV</span>
-                        <span class="text-[11px] text-slate-400 mt-0.5 block">Format UTF-8, hasil export sistem atau template standar</span>
-                        <input type="file" id="csvFileInput" name="file" accept=".csv" class="hidden" required onchange="handleCsvFileSelect(this)">
+                        <span id="csvFileName" class="text-xs font-semibold text-slate-700 block">Klik untuk memilih file TSV / CSV</span>
+                        <span class="text-[11px] text-slate-400 mt-0.5 block">Format UTF-8, hasil export sistem atau file tab delimited</span>
+                        <input type="file" id="csvFileInput" name="file" accept=".tsv,.csv,.txt" class="hidden" required onchange="handleCsvFileSelect(this)">
                     </div>
                 </div>
 
-                <!-- Overwrite Checkbox -->
                 <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-start gap-3">
                     <input type="checkbox" id="overwriteExisting" name="overwrite" value="true" checked
                         class="mt-1 w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300">
@@ -875,21 +1202,16 @@
                     </label>
                 </div>
 
-                <!-- Instructions / Column reference -->
                 <div class="p-3.5 rounded-xl bg-blue-50/80 border border-blue-200 text-xs text-blue-900 space-y-1">
                     <div class="font-bold flex items-center gap-1.5 text-blue-950">
                         <i data-lucide="info" class="w-4 h-4 text-blue-600"></i>
                         Format Kolom yang Didukung:
                     </div>
                     <p class="text-[11px] text-blue-800 leading-relaxed font-mono">
-                        No, Kode QR, No. Identitas, Nama Lengkap, No. HP / WA, Institusi, Pekerjaan, Status, Waktu Pendaftaran, Waktu Hadir
-                    </p>
-                    <p class="text-[11px] text-blue-700">
-                        *File hasil fitur "Export Semua Data" dapat langsung diimpor ke sini tanpa perlu diubah.
+                        No, Kode QR, No. Identitas, Nama Lengkap, Judul Presentasi, Ruangan, No. HP / WA, Institusi, Pekerjaan, Status, Waktu Pendaftaran, Waktu Hadir
                     </p>
                 </div>
 
-                <!-- Action Buttons -->
                 <div class="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
                     <button type="button" onclick="closeImportModal()"
                         class="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition">
@@ -910,7 +1232,7 @@
         <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center space-y-4 border border-slate-100 animate-in fade-in zoom-in duration-200">
             <div class="flex justify-between items-center pb-2 border-b border-slate-100">
                 <div class="flex items-center gap-2">
-                    <i data-lucide="wifi" class="w-5 h-5 text-emerald-600"></i>
+                    <i data-lucide="wifi" class="w-5 h-5 text-blue-600"></i>
                     <h3 class="font-bold text-sm text-slate-800">Akses Jaringan Wi-Fi / HP</h3>
                 </div>
                 <button onclick="closeLanModal()" class="text-slate-400 hover:text-slate-600">
@@ -919,26 +1241,28 @@
             </div>
 
             <p class="text-xs text-slate-600">
-                Scan QR Code ini menggunakan kamera HP untuk membuka form pendaftaran seminar di jaringan Wi-Fi lokal:
+                Scan QR Code ini menggunakan kamera HP untuk membuka form pendaftaran presenter di jaringan Wi-Fi lokal:
             </p>
 
             <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 inline-block">
                 <img id="lanQrImage" src="{{ request.script_root }}/api/qr-url.png" alt="QR Link Form" class="w-48 h-48 object-contain mx-auto">
-                <div class="mt-2 font-mono text-xs font-bold text-emerald-800 bg-emerald-50 px-2 py-1 rounded border border-emerald-200 break-all" id="lanUrlText">
+                <div class="mt-2 font-mono text-xs font-bold text-blue-800 bg-blue-50 px-2 py-1 rounded border border-blue-200 break-all" id="lanUrlText">
                     Memuat URL...
                 </div>
             </div>
 
             <p class="text-[11px] text-slate-400">
-                Pastikan HP / laptop peserta terhubung ke jaringan Wi-Fi yang sama.
+                Pastikan HP / laptop presenter terhubung ke jaringan Wi-Fi yang sama.
             </p>
         </div>
     </div>
 
+    <!-- ========================================================================= -->
+    <!-- JAVASCRIPT LOGIC                                                          -->
+    <!-- ========================================================================= -->
     <script>
         lucide.createIcons();
 
-        // XSS Sanitizer Utility
         function escapeHtml(str) {
             if (str === null || str === undefined) return '';
             return String(str)
@@ -949,14 +1273,12 @@
                 .replace(/'/g, '&#039;');
         }
 
-        // State Variables
-        let currentMainMenu = 'scan'; // 'scan', 'info', 'settings', or 'admin_users'
-        let currentInfoSubTab = 'pendaftar'; // 'pendaftar' or 'peserta'
+        let currentMainMenu = 'scan';
+        let currentInfoSubTab = 'pendaftar';
         let html5QrScanner = null;
         let isCameraRunning = false;
         let audioCtx = null;
 
-        // Audio synthesizer for beep feedback
         function playBeep(type = 'success') {
             try {
                 if (!audioCtx) {
@@ -969,8 +1291,8 @@
 
                 if (type === 'success') {
                     osc.type = 'sine';
-                    osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
-                    osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.1); // A5
+                    osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
+                    osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.1);
                     gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
                     gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
                     osc.start(audioCtx.currentTime);
@@ -995,20 +1317,21 @@
             }
         }
 
-        // Switch Main Console Menu
         function switchMainMenu(menu) {
             currentMainMenu = menu;
             const navScanBtn = document.getElementById('navScanBtn');
             const navInfoBtn = document.getElementById('navInfoBtn');
+            const navPresentationsBtn = document.getElementById('navPresentationsBtn');
             const navSettingsBtn = document.getElementById('navSettingsBtn');
             const navAdminUsersBtn = document.getElementById('navAdminUsersBtn');
             
             const sectionScan = document.getElementById('sectionScan');
             const sectionInfo = document.getElementById('sectionInfo');
+            const sectionPresentations = document.getElementById('sectionPresentations');
             const sectionSettings = document.getElementById('sectionSettings');
             const sectionAdminUsers = document.getElementById('sectionAdminUsers');
 
-            const activeClass = 'flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all bg-emerald-600 text-white shadow-sm';
+            const activeClass = 'flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all bg-blue-600 text-white shadow-sm';
             const inactiveClass = 'flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all text-slate-600 hover:text-slate-900';
 
             const activePurpleClass = 'flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all bg-purple-600 text-white shadow-sm';
@@ -1016,6 +1339,7 @@
 
             navScanBtn.className = (menu === 'scan') ? activeClass : inactiveClass;
             navInfoBtn.className = (menu === 'info') ? activeClass : inactiveClass;
+            navPresentationsBtn.className = (menu === 'presentations') ? activeClass : inactiveClass;
             navSettingsBtn.className = (menu === 'settings') ? activeClass : inactiveClass;
             if (navAdminUsersBtn) {
                 navAdminUsersBtn.className = (menu === 'admin_users') ? activePurpleClass : inactivePurpleClass;
@@ -1023,13 +1347,17 @@
 
             sectionScan.classList.toggle('hidden', menu !== 'scan');
             sectionInfo.classList.toggle('hidden', menu !== 'info');
+            sectionPresentations.classList.toggle('hidden', menu !== 'presentations');
             sectionSettings.classList.toggle('hidden', menu !== 'settings');
             if (sectionAdminUsers) {
                 sectionAdminUsers.classList.toggle('hidden', menu !== 'admin_users');
             }
 
             if (menu === 'info') {
+                loadDistinctRuangan();
                 loadParticipantsData();
+            } else if (menu === 'presentations') {
+                loadPresentationsAdmin();
             } else if (menu === 'admin_users') {
                 loadAdminUsersData();
             }
@@ -1037,7 +1365,6 @@
             lucide.createIcons();
         }
 
-        // Switch Sub-menu in Informasi Peserta: Pendaftar vs Peserta
         function switchInfoSubTab(subTab) {
             currentInfoSubTab = subTab;
             const tabPendaftarBtn = document.getElementById('tabPendaftarBtn');
@@ -1052,28 +1379,27 @@
                 tabPendaftarBtn.className = 'w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-left text-xs sm:text-sm font-bold transition-all bg-amber-50 text-amber-900 border border-amber-200 shadow-sm';
                 tabPesertaBtn.className = 'w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-left text-xs sm:text-sm font-bold transition-all text-slate-700 hover:bg-slate-100';
                 
-                tableTitle.innerHTML = `<span class="w-3 h-3 rounded-full bg-amber-500"></span> Daftar Pendaftar (Belum Hadir)`;
-                tableSubtitle.textContent = 'Menampilkan data orang yang sudah mendaftar namun belum melakukan absensi pemindaian QR Code.';
+                tableTitle.innerHTML = `<span class="w-3 h-3 rounded-full bg-amber-500"></span> Daftar Pendaftar Presenter (Belum Hadir)`;
+                tableSubtitle.textContent = 'Menampilkan data presenter yang telah mendaftar namun belum melakukan absensi pemindaian QR Code.';
                 colWaktuHeader.textContent = 'Waktu Daftar';
                 
                 exportCurrentBtn.href = `${window.BASE_URL}/api/export-csv?status=pendaftar`;
                 exportBtnLabel.textContent = 'Export CSV Pendaftar';
             } else {
-                tabPesertaBtn.className = 'w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-left text-xs sm:text-sm font-bold transition-all bg-emerald-50 text-emerald-900 border border-emerald-200 shadow-sm';
+                tabPesertaBtn.className = 'w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-left text-xs sm:text-sm font-bold transition-all bg-blue-50 text-blue-900 border border-blue-200 shadow-sm';
                 tabPendaftarBtn.className = 'w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-left text-xs sm:text-sm font-bold transition-all text-slate-700 hover:bg-slate-100';
                 
-                tableTitle.innerHTML = `<span class="w-3 h-3 rounded-full bg-emerald-500"></span> Daftar Peserta (Sudah Hadir)`;
-                tableSubtitle.textContent = 'Menampilkan data orang yang telah hadir melalui pemindaian QR Code.';
+                tableTitle.innerHTML = `<span class="w-3 h-3 rounded-full bg-blue-500"></span> Daftar Presenter (Sudah Hadir)`;
+                tableSubtitle.textContent = 'Menampilkan data presenter yang telah hadir melalui pemindaian QR Code.';
                 colWaktuHeader.textContent = 'Waktu Hadir';
                 
                 exportCurrentBtn.href = `${window.BASE_URL}/api/export-csv?status=peserta`;
-                exportBtnLabel.textContent = 'Export CSV Peserta';
+                exportBtnLabel.textContent = 'Export CSV Presenter Hadir';
             }
 
             loadParticipantsData();
         }
 
-        // Camera Initialization
         async function initCameraOptions() {
             try {
                 const devices = await Html5Qrcode.getCameras();
@@ -1140,7 +1466,7 @@
                     icon: 'error',
                     title: 'Kamera Gagal Dibuka',
                     text: 'Pastikan Anda memberikan izin akses kamera pada peramban ini.',
-                    confirmButtonColor: '#16a34a'
+                    confirmButtonColor: '#2563eb'
                 });
             }
         }
@@ -1151,7 +1477,7 @@
                 isCameraRunning = false;
                 document.getElementById('cameraPlaceholder').classList.remove('hidden');
                 document.getElementById('cameraBtnLabel').textContent = 'Nyalakan Kamera';
-                document.getElementById('toggleCameraBtn').className = 'px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition flex items-center gap-1.5';
+                document.getElementById('toggleCameraBtn').className = 'px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition flex items-center gap-1.5';
             }
         }
 
@@ -1194,7 +1520,7 @@
                     icon: 'warning',
                     title: 'Kode Kosong',
                     text: 'Masukkan 10 karakter kode QR!',
-                    confirmButtonColor: '#16a34a'
+                    confirmButtonColor: '#2563eb'
                 });
                 return;
             }
@@ -1224,7 +1550,7 @@
                     icon: 'error',
                     title: 'Gagal Membaca QR',
                     text: 'QR Code tidak terdeteksi pada gambar. Pastikan foto jelas dan fokus.',
-                    confirmButtonColor: '#16a34a'
+                    confirmButtonColor: '#2563eb'
                 });
             } finally {
                 input.value = '';
@@ -1248,21 +1574,23 @@
                 playBeep('success');
                 confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
 
-                badge.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800';
+                badge.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-blue-100 text-blue-800';
                 badge.textContent = 'Berhasil Hadir';
 
-                resultBanner.className = 'p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-center';
-                resultIcon.className = 'w-12 h-12 rounded-full bg-emerald-600 text-white flex items-center justify-center mx-auto mb-2 shadow-md';
+                resultBanner.className = 'p-4 rounded-2xl bg-blue-50 border border-blue-200 text-center';
+                resultIcon.className = 'w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center mx-auto mb-2 shadow-md';
                 resultIcon.innerHTML = `<i data-lucide="check" class="w-6 h-6 stroke-[3]"></i>`;
-                resultTitle.className = 'text-base font-extrabold text-emerald-900';
-                resultTitle.textContent = 'BERHASIL ABSENSI!';
-                resultSubtitle.className = 'text-xs text-emerald-700 mt-0.5';
-                resultSubtitle.textContent = 'Status diubah menjadi Peserta (Hadir)';
+                resultTitle.className = 'text-base font-extrabold text-blue-900';
+                resultTitle.textContent = 'BERHASIL PRESENSI!';
+                resultSubtitle.className = 'text-xs text-blue-700 mt-0.5';
+                resultSubtitle.textContent = 'Status diubah menjadi Hadir Presenter';
 
                 const d = res.data;
                 document.getElementById('resQrCode').textContent = d.qr_code;
                 document.getElementById('resNama').textContent = d.nama_lengkap;
                 document.getElementById('resNim').textContent = d.nim_nip;
+                document.getElementById('resJudul').textContent = d.judul_presentasi || '-';
+                document.getElementById('resRuangan').textContent = d.ruangan || '-';
                 document.getElementById('resHp').textContent = d.no_hp || '-';
                 document.getElementById('resInstitusi').textContent = d.institusi;
                 document.getElementById('resPekerjaan').textContent = d.pekerjaan;
@@ -1279,12 +1607,14 @@
                 resultTitle.className = 'text-base font-extrabold text-amber-900';
                 resultTitle.textContent = 'SUDAH HADIR SEBELUMNYA';
                 resultSubtitle.className = 'text-xs text-amber-700 mt-0.5';
-                resultSubtitle.textContent = 'Peserta ini telah melakukan absensi';
+                resultSubtitle.textContent = 'Presenter ini telah melakukan presensi kehadiran';
 
                 const d = res.data;
                 document.getElementById('resQrCode').textContent = d.qr_code;
                 document.getElementById('resNama').textContent = d.nama_lengkap;
                 document.getElementById('resNim').textContent = d.nim_nip;
+                document.getElementById('resJudul').textContent = d.judul_presentasi || '-';
+                document.getElementById('resRuangan').textContent = d.ruangan || '-';
                 document.getElementById('resHp').textContent = d.no_hp || '-';
                 document.getElementById('resInstitusi').textContent = d.institusi;
                 document.getElementById('resPekerjaan').textContent = d.pekerjaan;
@@ -1299,13 +1629,15 @@
                 resultIcon.className = 'w-12 h-12 rounded-full bg-rose-600 text-white flex items-center justify-center mx-auto mb-2 shadow-md';
                 resultIcon.innerHTML = `<i data-lucide="alert-triangle" class="w-6 h-6 stroke-[3]"></i>`;
                 resultTitle.className = 'text-base font-extrabold text-rose-900';
-                resultTitle.textContent = 'QR CODE TIDAK DITEMUKAN';
+                resultTitle.textContent = 'TIKET TIDAK DITEMUKAN';
                 resultSubtitle.className = 'text-xs text-rose-700 mt-0.5';
                 resultSubtitle.textContent = res.message || 'Kode QR tidak terdaftar dalam sistem.';
 
                 document.getElementById('resQrCode').textContent = scannedCode;
                 document.getElementById('resNama').textContent = '-';
                 document.getElementById('resNim').textContent = '-';
+                document.getElementById('resJudul').textContent = '-';
+                document.getElementById('resRuangan').textContent = '-';
                 document.getElementById('resHp').textContent = '-';
                 document.getElementById('resInstitusi').textContent = '-';
                 document.getElementById('resPekerjaan').textContent = '-';
@@ -1331,7 +1663,8 @@
                     document.getElementById('statTotal').textContent = s.total;
                     document.getElementById('statPendaftar').textContent = s.pendaftar;
                     document.getElementById('statPeserta').textContent = s.peserta;
-                    document.getElementById('statRate').textContent = `${s.attendance_rate}%`;
+                    document.getElementById('statJudulTerisi').textContent = s.judul_terisi || 0;
+                    document.getElementById('statTotalJudul').textContent = s.total_judul || 0;
 
                     document.getElementById('badgeSubPendaftar').textContent = s.pendaftar;
                     document.getElementById('badgeSubPeserta').textContent = s.peserta;
@@ -1341,22 +1674,190 @@
             }
         }
 
+        async function loadDistinctRuangan() {
+            try {
+                const res = await fetch(`${window.BASE_URL}/api/admin/presentations`);
+                const json = await res.json();
+                const roomList = json.ruangan_list || json.distinct_ruangan || [];
+                if (json.success && roomList.length > 0) {
+                    const filterRuangan = document.getElementById('filterRuangan');
+                    const presFilterRuangan = document.getElementById('presFilterRuangan');
+
+                    let opts = '<option value="Semua">Semua Ruangan</option>';
+                    roomList.forEach(r => {
+                        opts += `<option value="${escapeHtml(r)}">${escapeHtml(r)}</option>`;
+                    });
+
+                    if (filterRuangan) filterRuangan.innerHTML = opts;
+                    if (presFilterRuangan) presFilterRuangan.innerHTML = opts;
+                }
+            } catch (e) {
+                console.error('Error loading rooms:', e);
+            }
+        }
+
+        // =========================================================================
+        // DATA PRESENTER: SORTING & MULTI-SELECT DELETION LOGIC
+        // =========================================================================
+        let currentParticipantsList = [];
+        let partSortCol = 'id';
+        let partSortDir = 'asc';
+        let selectedPartIds = new Set();
+
+        function sortPartData(col) {
+            if (partSortCol === col) {
+                partSortDir = partSortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                partSortCol = col;
+                partSortDir = 'asc';
+            }
+            updatePartSortIcons();
+            renderParticipantsTable();
+        }
+
+        function updatePartSortIcons() {
+            const cols = ['id', 'qr_code', 'nim_nip', 'nama_lengkap', 'judul_presentasi', 'ruangan', 'no_hp', 'institusi', 'time'];
+            cols.forEach(c => {
+                const icon = document.getElementById(`partSortIcon_${c}`);
+                if (!icon) return;
+                if (c === partSortCol) {
+                    icon.setAttribute('data-lucide', partSortDir === 'asc' ? 'arrow-up' : 'arrow-down');
+                    icon.className = 'w-3 h-3 text-blue-600 font-bold';
+                } else {
+                    icon.setAttribute('data-lucide', 'arrow-up-down');
+                    icon.className = 'w-3 h-3 text-slate-400';
+                }
+            });
+            lucide.createIcons();
+        }
+
+        function handlePartCheckboxChange(id, isChecked) {
+            if (isChecked) {
+                selectedPartIds.add(id);
+            } else {
+                selectedPartIds.delete(id);
+            }
+            updatePartBulkBar();
+        }
+
+        function toggleSelectAllPart(masterCheckbox) {
+            const isChecked = masterCheckbox.checked;
+            const checkboxes = document.querySelectorAll('.part-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = isChecked;
+                const id = parseInt(cb.value);
+                if (isChecked) {
+                    selectedPartIds.add(id);
+                } else {
+                    selectedPartIds.delete(id);
+                }
+            });
+            updatePartBulkBar();
+        }
+
+        function updatePartBulkBar() {
+            const count = selectedPartIds.size;
+            const bar = document.getElementById('partBulkActionBar');
+            const badge = document.getElementById('partSelectedCountBadge');
+            const deleteCount = document.getElementById('partBulkDeleteCount');
+            const masterCb = document.getElementById('partSelectAll');
+
+            if (badge) badge.textContent = count;
+            if (deleteCount) deleteCount.textContent = count;
+
+            if (count > 0) {
+                if (bar) {
+                    bar.classList.remove('hidden');
+                    bar.classList.add('flex');
+                }
+            } else {
+                if (bar) {
+                    bar.classList.add('hidden');
+                    bar.classList.remove('flex');
+                }
+            }
+
+            const visibleCheckboxes = document.querySelectorAll('.part-checkbox');
+            if (masterCb && visibleCheckboxes.length > 0) {
+                const allChecked = Array.from(visibleCheckboxes).every(cb => cb.checked);
+                masterCb.checked = allChecked && count > 0;
+            }
+        }
+
+        function clearPartSelection() {
+            selectedPartIds.clear();
+            const masterCb = document.getElementById('partSelectAll');
+            if (masterCb) masterCb.checked = false;
+            document.querySelectorAll('.part-checkbox').forEach(cb => cb.checked = false);
+            updatePartBulkBar();
+        }
+
+        async function confirmBulkDeletePart() {
+            const count = selectedPartIds.size;
+            if (count === 0) return;
+
+            const confirm = await Swal.fire({
+                title: `Hapus ${count} Presenter?`,
+                text: `Apakah Anda yakin ingin menghapus ${count} data presenter terpilih? Judul presentasi yang sebelumnya diklaim akan kembali tersedia.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#e11d48',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: `Ya, Hapus (${count})`,
+                cancelButtonText: 'Batal'
+            });
+
+            if (!confirm.isConfirmed) return;
+
+            try {
+                const res = await fetch(`${window.BASE_URL}/api/participants/bulk-delete`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids: Array.from(selectedPartIds) })
+                });
+                const json = await res.json();
+                if (res.ok && json.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Berhasil!',
+                        text: json.message,
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                    clearPartSelection();
+                    loadParticipantsData();
+                    updateStats();
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Gagal',
+                        text: json.message || 'Terjadi kesalahan.',
+                        confirmButtonColor: '#2563eb'
+                    });
+                }
+            } catch (e) {
+                console.error('Bulk delete error:', e);
+            }
+        }
+
         async function loadParticipantsData() {
             const tableBody = document.getElementById('participantTableBody');
             const search = document.getElementById('searchInput').value;
             const job = document.getElementById('filterPekerjaan').value;
+            const ruang = document.getElementById('filterRuangan')?.value || 'Semua';
 
             const params = new URLSearchParams({
                 status: currentInfoSubTab,
                 search: search,
-                pekerjaan: job
+                pekerjaan: job,
+                ruangan: ruang
             });
 
             tableBody.innerHTML = `
                 <tr>
-                    <td colspan="9" class="text-center py-10 text-slate-400">
-                        <i data-lucide="loader-2" class="w-6 h-6 animate-spin mx-auto mb-2 text-emerald-600"></i>
-                        Memuat data...
+                    <td colspan="11" class="text-center py-10 text-slate-400">
+                        <i data-lucide="loader-2" class="w-6 h-6 animate-spin mx-auto mb-2 text-blue-600"></i>
+                        Memuat data presenter...
                     </td>
                 </tr>
             `;
@@ -1366,96 +1867,138 @@
                 const res = await fetch(`${window.BASE_URL}/api/participants?${params.toString()}`);
                 const json = await res.json();
 
-                if (json.success && json.data.length > 0) {
-                    document.getElementById('tableCount').textContent = json.data.length;
-                    let html = '';
-                    json.data.forEach((p, idx) => {
-                        const timeDisplay = currentInfoSubTab === 'peserta' ? (p.attended_at || '-') : p.created_at;
-                        const toggleActionTitle = currentInfoSubTab === 'pendaftar' ? 'Tandai Sudah Hadir' : 'Kembalikan ke Pendaftar';
-                        const toggleActionIcon = currentInfoSubTab === 'pendaftar' ? 'check' : 'undo-2';
-                        const toggleActionClass = currentInfoSubTab === 'pendaftar' ? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-700' : 'bg-amber-100 hover:bg-amber-200 text-amber-700';
-
-                        const safeQr = escapeHtml(p.qr_code);
-                        const safeNama = escapeHtml(p.nama_lengkap);
-                        const safeNim = escapeHtml(p.nim_nip);
-                        const safeHp = escapeHtml(p.no_hp || '-');
-                        const rawHp = (p.no_hp || '').replace(/\D/g, '');
-                        const waNumber = rawHp.startsWith('0') ? '62' + rawHp.slice(1) : rawHp;
-                        const safeInstitusi = escapeHtml(p.institusi);
-                        const safePekerjaan = escapeHtml(p.pekerjaan);
-                        const safeTime = escapeHtml(timeDisplay);
-
-                        html += `
-                            <tr class="hover:bg-slate-50/80 transition">
-                                <td class="py-3 px-4 text-center text-slate-400 font-medium">${idx + 1}</td>
-                                <td class="py-3 px-4">
-                                    <button onclick="openQrModal('${safeQr}', '${encodeURIComponent(p.nama_lengkap)}')" class="font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 hover:bg-emerald-100 transition inline-flex items-center gap-1">
-                                        <i data-lucide="qr-code" class="w-3 h-3"></i>
-                                        <span>${safeQr}</span>
-                                    </button>
-                                </td>
-                                <td class="py-3 px-4 font-mono text-slate-800">${safeNim}</td>
-                                <td class="py-3 px-4 font-bold text-slate-900">${safeNama}</td>
-                                <td class="py-3 px-4">
-                                    ${p.no_hp ? `
-                                        <a href="https://wa.me/${waNumber}" target="_blank" title="Hubungi via WhatsApp (${safeHp})"
-                                            class="font-mono text-emerald-700 hover:text-emerald-800 hover:underline inline-flex items-center gap-1 font-medium bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60">
-                                            <i data-lucide="phone" class="w-3 h-3 text-emerald-600"></i>
-                                            <span>${safeHp}</span>
-                                        </a>
-                                    ` : `<span class="text-slate-400 font-mono">-</span>`}
-                                </td>
-                                <td class="py-3 px-4 text-slate-600">${safeInstitusi}</td>
-                                <td class="py-3 px-4">
-                                    <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
-                                        ${safePekerjaan}
-                                    </span>
-                                </td>
-                                <td class="py-3 px-4 text-slate-500 text-[11px] whitespace-nowrap">${safeTime}</td>
-                                <td class="py-3 px-4 text-center">
-                                    <div class="flex items-center justify-center gap-1">
-                                        <button onclick="toggleParticipantStatus(${p.id}, '${encodeURIComponent(p.nama_lengkap)}', '${p.status}')" title="${toggleActionTitle}"
-                                             class="p-1.5 rounded-lg ${toggleActionClass} transition">
-                                            <i data-lucide="${toggleActionIcon}" class="w-3.5 h-3.5"></i>
-                                        </button>
-                                        <button onclick="deleteParticipant(${p.id}, '${encodeURIComponent(p.nama_lengkap)}')" title="Hapus Data"
-                                             class="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 transition">
-                                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        `;
-                    });
-                    tableBody.innerHTML = html;
-                } else {
-                    document.getElementById('tableCount').textContent = '0';
-                    tableBody.innerHTML = `
-                        <tr>
-                            <td colspan="9" class="text-center py-12 text-slate-400">
-                                <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 text-slate-300"></i>
-                                <p class="font-medium text-slate-600">Tidak ada data ${currentInfoSubTab}</p>
-                                <p class="text-[11px] text-slate-400 mt-0.5">Belum ada data yang cocok dengan kriteria pencarian.</p>
-                            </td>
-                        </tr>
-                    `;
+                if (json.success && json.data) {
+                    currentParticipantsList = json.data;
+                    renderParticipantsTable();
                 }
-                lucide.createIcons();
             } catch (e) {
                 console.error(e);
             }
         }
 
+        function renderParticipantsTable() {
+            const tableBody = document.getElementById('participantTableBody');
+            if (!tableBody) return;
+
+            let data = [...currentParticipantsList];
+
+            // Client-side column sorting
+            data.sort((a, b) => {
+                let valA = '';
+                let valB = '';
+
+                if (partSortCol === 'id') {
+                    valA = a.id || 0;
+                    valB = b.id || 0;
+                    return partSortDir === 'asc' ? valA - valB : valB - valA;
+                } else if (partSortCol === 'time') {
+                    valA = currentInfoSubTab === 'peserta' ? (a.attended_at || '') : (a.created_at || '');
+                    valB = currentInfoSubTab === 'peserta' ? (b.attended_at || '') : (b.created_at || '');
+                } else {
+                    valA = (a[partSortCol] || '').toString().toLowerCase();
+                    valB = (b[partSortCol] || '').toString().toLowerCase();
+                }
+
+                if (valA < valB) return partSortDir === 'asc' ? -1 : 1;
+                if (valA > valB) return partSortDir === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            document.getElementById('tableCount').textContent = data.length;
+
+            if (data.length === 0) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="11" class="text-center py-12 text-slate-400">
+                            <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 text-slate-300"></i>
+                            <p class="font-medium text-slate-600">Tidak ada data presenter</p>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Belum ada data yang cocok dengan kriteria pencarian.</p>
+                        </td>
+                    </tr>
+                `;
+            } else {
+                let html = '';
+                data.forEach((p, idx) => {
+                    const timeDisplay = currentInfoSubTab === 'peserta' ? (p.attended_at || '-') : p.created_at;
+                    const toggleActionTitle = currentInfoSubTab === 'pendaftar' ? 'Tandai Sudah Hadir' : 'Kembalikan ke Belum Hadir';
+                    const toggleActionIcon = currentInfoSubTab === 'pendaftar' ? 'check' : 'undo-2';
+                    const toggleActionClass = currentInfoSubTab === 'pendaftar' ? 'bg-blue-100 hover:bg-blue-200 text-blue-700' : 'bg-amber-100 hover:bg-amber-200 text-amber-700';
+
+                    const isChecked = selectedPartIds.has(p.id);
+                    const safeQr = escapeHtml(p.qr_code);
+                    const safeNama = escapeHtml(p.nama_lengkap);
+                    const safeNim = escapeHtml(p.nim_nip);
+                    const safeJudul = escapeHtml(p.judul_presentasi || '-');
+                    const safeRuang = escapeHtml(p.ruangan || '-');
+                    const safeHp = escapeHtml(p.no_hp || '-');
+                    const rawHp = (p.no_hp || '').replace(/\D/g, '');
+                    const waNumber = rawHp.startsWith('0') ? '62' + rawHp.slice(1) : rawHp;
+                    const safeInstitusi = escapeHtml(p.institusi);
+                    const safeTime = escapeHtml(timeDisplay);
+
+                    html += `
+                        <tr class="hover:bg-slate-50/80 transition ${isChecked ? 'bg-blue-50/40' : ''}">
+                            <td class="py-3 px-3 text-center">
+                                <input type="checkbox" class="part-checkbox w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer"
+                                    value="${p.id}" ${isChecked ? 'checked' : ''} onchange="handlePartCheckboxChange(${p.id}, this.checked)">
+                            </td>
+                            <td class="py-3 px-3 text-center text-slate-400 font-medium">${idx + 1}</td>
+                            <td class="py-3 px-3">
+                                <button onclick="openQrModal('${safeQr}', '${encodeURIComponent(p.nama_lengkap)}')" class="font-mono font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200 hover:bg-blue-100 transition inline-flex items-center gap-1">
+                                    <i data-lucide="qr-code" class="w-3 h-3"></i>
+                                    <span>${safeQr}</span>
+                                </button>
+                            </td>
+                            <td class="py-3 px-3 font-mono text-slate-800">${safeNim}</td>
+                            <td class="py-3 px-3 font-bold text-slate-900">${safeNama}</td>
+                            <td class="py-3 px-3 max-w-xs">
+                                <div class="font-medium text-slate-800 line-clamp-2" title="${safeJudul}">${safeJudul}</div>
+                            </td>
+                            <td class="py-3 px-3">
+                                <span class="font-mono font-bold text-[11px] bg-slate-100 px-2 py-0.5 rounded border border-slate-200 text-slate-700">${safeRuang}</span>
+                            </td>
+                            <td class="py-3 px-3">
+                                ${p.no_hp ? `
+                                    <a href="https://wa.me/${waNumber}" target="_blank" title="Hubungi via WhatsApp (${safeHp})"
+                                        class="font-mono text-blue-700 hover:text-blue-800 hover:underline inline-flex items-center gap-1 font-medium bg-blue-50 px-2 py-0.5 rounded border border-blue-200/60">
+                                        <i data-lucide="phone" class="w-3 h-3 text-blue-600"></i>
+                                        <span>${safeHp}</span>
+                                    </a>
+                                ` : `<span class="text-slate-400 font-mono">-</span>`}
+                            </td>
+                            <td class="py-3 px-3 text-slate-600">${safeInstitusi}</td>
+                            <td class="py-3 px-3 text-slate-500 text-[11px] whitespace-nowrap">${safeTime}</td>
+                            <td class="py-3 px-3 text-center">
+                                <div class="flex items-center justify-center gap-1">
+                                    <button onclick="toggleParticipantStatus(${p.id}, '${encodeURIComponent(p.nama_lengkap)}', '${p.status}')" title="${toggleActionTitle}"
+                                         class="p-1.5 rounded-lg ${toggleActionClass} transition">
+                                        <i data-lucide="${toggleActionIcon}" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                    <button onclick="deleteParticipant(${p.id}, '${encodeURIComponent(p.nama_lengkap)}')" title="Hapus Data"
+                                         class="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 transition">
+                                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+                tableBody.innerHTML = html;
+            }
+            updatePartBulkBar();
+            lucide.createIcons();
+        }
+
         async function toggleParticipantStatus(id, encodedName, currentStatus) {
             const name = decodeURIComponent(encodedName);
-            const nextStatus = currentStatus === 'pendaftar' ? 'Peserta (Hadir)' : 'Pendaftar (Belum Hadir)';
+            const nextStatus = currentStatus === 'pendaftar' ? 'Presenter Hadir' : 'Pendaftar (Belum Hadir)';
 
             const confirm = await Swal.fire({
-                title: 'Ubah Status Kehadiran?',
+                title: 'Ubah Status Presensi?',
                 text: `Ubah status ${name} menjadi ${nextStatus}?`,
                 icon: 'question',
                 showCancelButton: true,
-                confirmButtonColor: '#16a34a',
+                confirmButtonColor: '#2563eb',
                 cancelButtonColor: '#64748b',
                 confirmButtonText: 'Ya, Ubah',
                 cancelButtonText: 'Batal'
@@ -1478,8 +2021,8 @@
         async function deleteParticipant(id, encodedName) {
             const name = decodeURIComponent(encodedName);
             const confirm = await Swal.fire({
-                title: 'Hapus Data?',
-                text: `Apakah Anda yakin ingin menghapus data ${name}?`,
+                title: 'Hapus Data Presenter?',
+                text: `Apakah Anda yakin ingin menghapus data presenter ${name}? Judul yang sebelumnya dipilih akan kembali tersedia untuk presenter lain.`,
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#e11d48',
@@ -1494,6 +2037,8 @@
                 const res = await fetch(`${window.BASE_URL}/api/participant/${id}`, { method: 'DELETE' });
                 const json = await res.json();
                 if (json.success) {
+                    selectedPartIds.delete(id);
+                    updatePartBulkBar();
                     loadParticipantsData();
                     updateStats();
                 }
@@ -1503,8 +2048,513 @@
         }
 
         // =========================================================================
-        // SUPER ADMIN MANAGEMENT LOGIC
+        // KELOLA JUDUL PRESENTASI: SORTING & MULTI-SELECT DELETION LOGIC
         // =========================================================================
+        let currentPresentationsList = [];
+        let presSortCol = 'id';
+        let presSortDir = 'asc';
+        let selectedPresIds = new Set();
+
+        function sortPresData(col) {
+            if (presSortCol === col) {
+                presSortDir = presSortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                presSortCol = col;
+                presSortDir = 'asc';
+            }
+            updatePresSortIcons();
+            renderPresentationsTable();
+        }
+
+        function updatePresSortIcons() {
+            const cols = ['id', 'judul', 'ruangan', 'is_taken'];
+            cols.forEach(c => {
+                const icon = document.getElementById(`presSortIcon_${c}`);
+                if (!icon) return;
+                if (c === presSortCol) {
+                    icon.setAttribute('data-lucide', presSortDir === 'asc' ? 'arrow-up' : 'arrow-down');
+                    icon.className = 'w-3 h-3 text-blue-600 font-bold';
+                } else {
+                    icon.setAttribute('data-lucide', 'arrow-up-down');
+                    icon.className = 'w-3 h-3 text-slate-400';
+                }
+            });
+            lucide.createIcons();
+        }
+
+        function handlePresCheckboxChange(id, isChecked) {
+            if (isChecked) {
+                selectedPresIds.add(id);
+            } else {
+                selectedPresIds.delete(id);
+            }
+            updatePresBulkBar();
+        }
+
+        function toggleSelectAllPres(masterCheckbox) {
+            const isChecked = masterCheckbox.checked;
+            const checkboxes = document.querySelectorAll('.pres-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = isChecked;
+                const id = parseInt(cb.value);
+                if (isChecked) {
+                    selectedPresIds.add(id);
+                } else {
+                    selectedPresIds.delete(id);
+                }
+            });
+            updatePresBulkBar();
+        }
+
+        function updatePresBulkBar() {
+            const count = selectedPresIds.size;
+            const bar = document.getElementById('presBulkActionBar');
+            const badge = document.getElementById('presSelectedCountBadge');
+            const deleteCount = document.getElementById('presBulkDeleteCount');
+            const masterCb = document.getElementById('presSelectAll');
+
+            if (badge) badge.textContent = count;
+            if (deleteCount) deleteCount.textContent = count;
+
+            if (count > 0) {
+                if (bar) {
+                    bar.classList.remove('hidden');
+                    bar.classList.add('flex');
+                }
+            } else {
+                if (bar) {
+                    bar.classList.add('hidden');
+                    bar.classList.remove('flex');
+                }
+            }
+
+            const visibleCheckboxes = document.querySelectorAll('.pres-checkbox');
+            if (masterCb && visibleCheckboxes.length > 0) {
+                const allChecked = Array.from(visibleCheckboxes).every(cb => cb.checked);
+                masterCb.checked = allChecked && count > 0;
+            }
+        }
+
+        function clearPresSelection() {
+            selectedPresIds.clear();
+            const masterCb = document.getElementById('presSelectAll');
+            if (masterCb) masterCb.checked = false;
+            document.querySelectorAll('.pres-checkbox').forEach(cb => cb.checked = false);
+            updatePresBulkBar();
+        }
+
+        async function confirmBulkDeletePres() {
+            const count = selectedPresIds.size;
+            if (count === 0) return;
+
+            const confirm = await Swal.fire({
+                title: `Hapus ${count} Judul?`,
+                text: `Apakah Anda yakin ingin menghapus ${count} judul presentasi terpilih?`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#e11d48',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: `Ya, Hapus (${count})`,
+                cancelButtonText: 'Batal'
+            });
+
+            if (!confirm.isConfirmed) return;
+
+            try {
+                const res = await fetch(`${window.BASE_URL}/api/admin/presentations/bulk-delete`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids: Array.from(selectedPresIds) })
+                });
+                const json = await res.json();
+                if (res.ok && json.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Berhasil!',
+                        text: json.message,
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                    clearPresSelection();
+                    loadPresentationsAdmin();
+                    loadDistinctRuangan();
+                    updateStats();
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Gagal',
+                        text: json.message || 'Terjadi kesalahan.',
+                        confirmButtonColor: '#2563eb'
+                    });
+                }
+            } catch (e) {
+                console.error('Bulk delete presentations error:', e);
+            }
+        }
+
+        async function loadPresentationsAdmin() {
+            const tbody = document.getElementById('presentationsTableBody');
+            if (!tbody) return;
+
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center py-10 text-slate-400">
+                        <i data-lucide="loader-2" class="w-6 h-6 animate-spin mx-auto mb-2 text-blue-600"></i>
+                        Memuat data judul presentasi...
+                    </td>
+                </tr>
+            `;
+            lucide.createIcons();
+
+            try {
+                const res = await fetch(`${window.BASE_URL}/api/admin/presentations`);
+                const json = await res.json();
+
+                if (res.ok && json.success && json.data) {
+                    const s = json.stats;
+                    document.getElementById('presStatTotal').textContent = s.total;
+                    document.getElementById('presStatTerisi').textContent = s.terisi;
+                    document.getElementById('presStatTersedia').textContent = s.tersedia;
+
+                    currentPresentationsList = json.data;
+                    renderPresentationsTable();
+                }
+            } catch (e) {
+                console.error('Error loading presentations admin', e);
+            }
+        }
+
+        function renderPresentationsTable() {
+            const tbody = document.getElementById('presentationsTableBody');
+            if (!tbody) return;
+
+            const search = (document.getElementById('presSearchInput')?.value || '').toLowerCase();
+            const roomFilter = document.getElementById('presFilterRuangan')?.value || 'Semua';
+
+            let filtered = currentPresentationsList.filter(item => {
+                const matchRoom = (roomFilter === 'Semua' || item.ruangan === roomFilter);
+                const matchSearch = (!search || 
+                    item.judul.toLowerCase().includes(search) || 
+                    (item.ruangan && item.ruangan.toLowerCase().includes(search)) ||
+                    (item.presenter_name && item.presenter_name.toLowerCase().includes(search)) ||
+                    (item.presenter_nim && item.presenter_nim.toLowerCase().includes(search))
+                );
+                return matchRoom && matchSearch;
+            });
+
+            // Client-side column sorting
+            filtered.sort((a, b) => {
+                let valA = '';
+                let valB = '';
+
+                if (presSortCol === 'id') {
+                    valA = a.id || 0;
+                    valB = b.id || 0;
+                    return presSortDir === 'asc' ? valA - valB : valB - valA;
+                } else if (presSortCol === 'is_taken') {
+                    valA = a.is_taken ? 1 : 0;
+                    valB = b.is_taken ? 1 : 0;
+                    return presSortDir === 'asc' ? valA - valB : valB - valA;
+                } else {
+                    valA = (a[presSortCol] || '').toString().toLowerCase();
+                    valB = (b[presSortCol] || '').toString().toLowerCase();
+                }
+
+                if (valA < valB) return presSortDir === 'asc' ? -1 : 1;
+                if (valA > valB) return presSortDir === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            document.getElementById('presTableCount').textContent = filtered.length;
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center py-12 text-slate-400">
+                            <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 text-slate-300"></i>
+                            <p class="font-medium text-slate-600">Belum ada judul presentasi</p>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Gunakan tombol "Tambah Judul" atau "Impor CSV Judul" di atas.</p>
+                        </td>
+                    </tr>
+                `;
+            } else {
+                let html = '';
+                filtered.forEach((item, idx) => {
+                    const isChecked = selectedPresIds.has(item.id);
+                    const safeJudul = escapeHtml(item.judul);
+                    const safeRuang = escapeHtml(item.ruangan || '-');
+                    
+                    let statusBadge = '';
+                    if (item.is_taken) {
+                        const safePresName = escapeHtml(item.presenter_name || 'Presenter');
+                        const safePresNim = escapeHtml(item.presenter_nim || '');
+                        statusBadge = `
+                            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 text-blue-900 border border-blue-200 text-xs font-semibold">
+                                <i data-lucide="user-check" class="w-3.5 h-3.5 text-blue-600 shrink-0"></i>
+                                <span class="truncate max-w-[180px]">${safePresName} (${safePresNim})</span>
+                            </div>
+                        `;
+                    } else {
+                        statusBadge = `
+                            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold">
+                                <i data-lucide="sparkles" class="w-3.5 h-3.5 text-emerald-600"></i>
+                                <span>Tersedia</span>
+                            </div>
+                        `;
+                    }
+
+                    html += `
+                        <tr class="hover:bg-slate-50 transition ${isChecked ? 'bg-blue-50/40' : ''}">
+                            <td class="py-3 px-3 text-center">
+                                <input type="checkbox" class="pres-checkbox w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer"
+                                    value="${item.id}" ${isChecked ? 'checked' : ''} onchange="handlePresCheckboxChange(${item.id}, this.checked)">
+                            </td>
+                            <td class="py-3 px-3 text-center text-slate-400 font-medium">${idx + 1}</td>
+                            <td class="py-3 px-4">
+                                <div class="font-bold text-slate-900 text-sm leading-snug">${safeJudul}</div>
+                            </td>
+                            <td class="py-3 px-4">
+                                <span class="font-mono font-bold text-xs bg-slate-100 text-slate-800 px-2.5 py-1 rounded-md border border-slate-200">
+                                    ${safeRuang}
+                                </span>
+                            </td>
+                            <td class="py-3 px-4">${statusBadge}</td>
+                            <td class="py-3 px-4 text-center">
+                                <div class="flex items-center justify-center gap-1.5">
+                                    <button onclick="openEditPresentationModal(${item.id}, '${encodeURIComponent(item.judul)}', '${encodeURIComponent(item.ruangan || '')}')"
+                                        class="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition" title="Edit Judul & Ruangan">
+                                        <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                    <button onclick="deletePresentation(${item.id}, '${encodeURIComponent(item.judul)}')"
+                                        class="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 transition" title="Hapus Judul">
+                                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+                tbody.innerHTML = html;
+            }
+            updatePresBulkBar();
+            lucide.createIcons();
+        }
+
+        function openAddPresentationModal() {
+            document.getElementById('presentationModalTitle').textContent = 'Tambah Judul Presentasi Baru';
+            document.getElementById('modalPresId').value = '';
+            document.getElementById('modalPresJudul').value = '';
+            document.getElementById('modalPresRuangan').value = '';
+            document.getElementById('presentationModal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function openEditPresentationModal(id, encodedJudul, encodedRuangan) {
+            document.getElementById('presentationModalTitle').textContent = 'Edit Judul & Ruangan Presentasi';
+            document.getElementById('modalPresId').value = id;
+            document.getElementById('modalPresJudul').value = decodeURIComponent(encodedJudul);
+            document.getElementById('modalPresRuangan').value = decodeURIComponent(encodedRuangan);
+            document.getElementById('presentationModal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closePresentationModal() {
+            document.getElementById('presentationModal').classList.add('hidden');
+        }
+
+        const presentationForm = document.getElementById('presentationForm');
+        if (presentationForm) {
+            presentationForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const id = document.getElementById('modalPresId').value;
+                const judul = document.getElementById('modalPresJudul').value.trim();
+                const ruangan = document.getElementById('modalPresRuangan').value.trim();
+
+                if (!judul) {
+                    Swal.fire({ icon: 'warning', title: 'Judul Wajib Diisi', text: 'Silakan isi teks judul presentasi!', confirmButtonColor: '#2563eb' });
+                    return;
+                }
+
+                try {
+                    let url = `${window.BASE_URL}/api/admin/presentations`;
+                    if (id) {
+                        url = `${window.BASE_URL}/api/admin/presentations/${id}`;
+                    }
+
+                    const res = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ judul, ruangan })
+                    });
+                    const json = await res.json();
+
+                    if (res.ok && json.success) {
+                        closePresentationModal();
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Berhasil!',
+                            text: json.message,
+                            timer: 1500,
+                            showConfirmButton: false
+                        });
+                        loadPresentationsAdmin();
+                        loadDistinctRuangan();
+                        updateStats();
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal',
+                            text: json.message || 'Terjadi kesalahan.',
+                            confirmButtonColor: '#2563eb'
+                        });
+                    }
+                } catch (err) {
+                    console.error(err);
+                }
+            });
+        }
+
+        async function deletePresentation(id, encodedJudul) {
+            const judul = decodeURIComponent(encodedJudul);
+            const confirm = await Swal.fire({
+                title: 'Hapus Judul Presentasi?',
+                text: `Hapus judul: "${judul}"? Jika sudah ada presenter yang memilih judul ini, datanya akan dilepas dari judul.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#e11d48',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Ya, Hapus',
+                cancelButtonText: 'Batal'
+            });
+
+            if (!confirm.isConfirmed) return;
+
+            try {
+                const res = await fetch(`${window.BASE_URL}/api/admin/presentations/${id}`, { method: 'DELETE' });
+                const json = await res.json();
+                if (res.ok && json.success) {
+                    loadPresentationsAdmin();
+                    loadDistinctRuangan();
+                    updateStats();
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Gagal', text: json.message, confirmButtonColor: '#e11d48' });
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function confirmResetPresentations() {
+            const confirm = await Swal.fire({
+                title: 'Hapus Semua Judul Presentasi?',
+                text: 'Perhatian! Semua judul presentasi dalam database akan dihapus. Presenter yang sudah terdaftar akan tetap tersimpan namun judulnya akan menjadi unlinked.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#e11d48',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Ya, Hapus Semua',
+                cancelButtonText: 'Batal'
+            });
+
+            if (!confirm.isConfirmed) return;
+
+            try {
+                const res = await fetch(`${window.BASE_URL}/api/admin/presentations/reset`, { method: 'POST' });
+                const json = await res.json();
+                if (res.ok && json.success) {
+                    Swal.fire({ icon: 'success', title: 'Dibersihkan', text: json.message, timer: 1500, showConfirmButton: false });
+                    loadPresentationsAdmin();
+                    loadDistinctRuangan();
+                    updateStats();
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Gagal', text: json.message, confirmButtonColor: '#e11d48' });
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function openImportPresentationModal() {
+            document.getElementById('presCsvFileInput').value = '';
+            document.getElementById('presCsvFileName').textContent = 'Klik untuk memilih file CSV';
+            document.getElementById('importPresentationModal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeImportPresentationModal() {
+            document.getElementById('importPresentationModal').classList.add('hidden');
+        }
+
+        function handlePresCsvFileSelect(input) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                document.getElementById('presCsvFileName').textContent = `📄 ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+            }
+        }
+
+        const importPresentationCsvForm = document.getElementById('importPresentationCsvForm');
+        if (importPresentationCsvForm) {
+            importPresentationCsvForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const fileInput = document.getElementById('presCsvFileInput');
+                if (!fileInput.files || fileInput.files.length === 0) {
+                    Swal.fire({ icon: 'warning', title: 'File Belum Dipilih', text: 'Silakan pilih file CSV terlebih dahulu.', confirmButtonColor: '#2563eb' });
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+
+                const btn = document.getElementById('btnSubmitPresImport');
+                const btnText = document.getElementById('btnSubmitPresImportText');
+                btn.disabled = true;
+                btnText.textContent = 'Mengimpor Judul...';
+
+                try {
+                    const res = await fetch(`${window.BASE_URL}/api/admin/presentations/import-csv`, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await res.json();
+
+                    if (res.ok && data.success) {
+                        closeImportPresentationModal();
+                        const s = data.summary;
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Impor Judul Selesai!',
+                            html: `
+                                <div class="text-left text-xs sm:text-sm space-y-2 mt-2">
+                                    <p class="font-medium text-slate-700">${escapeHtml(data.message)}</p>
+                                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1 font-mono text-xs">
+                                        <div class="flex justify-between"><span>Total Baris:</span> <strong>${s.total}</strong></div>
+                                        <div class="flex justify-between text-blue-700"><span>Judul Ditambahkan:</span> <strong>+${s.inserted}</strong></div>
+                                        <div class="flex justify-between text-slate-500"><span>Dilewati (Kosong/Duplikat):</span> <strong>${s.skipped}</strong></div>
+                                    </div>
+                                </div>
+                            `,
+                            confirmButtonColor: '#2563eb'
+                        });
+                        loadPresentationsAdmin();
+                        loadDistinctRuangan();
+                        updateStats();
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal Mengimpor CSV',
+                            text: data.message || 'Terjadi kesalahan saat memproses file CSV.',
+                            confirmButtonColor: '#e11d48'
+                        });
+                    }
+                } catch (err) {
+                    console.error(err);
+                } finally {
+                    btn.disabled = false;
+                    btnText.textContent = 'Mulai Impor Judul';
+                }
+            });
+        }
+
         async function loadAdminUsersData() {
             const tbody = document.getElementById('adminUsersTableBody');
             if (!tbody) return;
@@ -1530,7 +2580,7 @@
                         const isSuper = u.role === 'superadmin';
                         const roleBadge = isSuper
                             ? `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">SUPER ADMIN</span>`
-                            : `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">PETUGAS ADMIN</span>`;
+                            : `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200">PETUGAS ADMIN</span>`;
 
                         const safeNama = escapeHtml(u.nama);
                         const safeUsername = escapeHtml(u.username);
@@ -1575,7 +2625,6 @@
             }
         }
 
-        // Reset Password Modal Functions
         function openResetPassModal(id, encodedNama, username) {
             const nama = decodeURIComponent(encodedNama);
             document.getElementById('resetTargetId').value = id;
@@ -1627,7 +2676,6 @@
             });
         }
 
-        // Add / Edit Admin Modal Functions
         function openAddAdminModal() {
             document.getElementById('adminUserModalTitle').textContent = 'Tambah Admin Baru';
             document.getElementById('modalAdminId').value = '';
@@ -1750,9 +2798,6 @@
             }
         }
 
-        // =========================================================================
-        // SETTINGS & PROFILE FORM
-        // =========================================================================
         const inputEventName = document.getElementById('inputEventName');
         const previewEventName = document.getElementById('previewEventName');
         const settingsForm = document.getElementById('settingsForm');
@@ -1788,7 +2833,7 @@
                 text: 'Logo acara akan dikembalikan ke icon default sistem.',
                 icon: 'question',
                 showCancelButton: true,
-                confirmButtonColor: '#16a34a',
+                confirmButtonColor: '#2563eb',
                 cancelButtonColor: '#64748b',
                 confirmButtonText: 'Ya, Reset',
                 cancelButtonText: 'Batal'
@@ -1841,7 +2886,7 @@
                             icon: 'success',
                             title: 'Pengaturan Disimpan!',
                             text: 'Nama acara dan logo resmi telah diperbarui untuk seluruh sistem.',
-                            confirmButtonColor: '#16a34a'
+                            confirmButtonColor: '#2563eb'
                         }).then(() => {
                             window.location.reload();
                         });
@@ -1850,7 +2895,7 @@
                             icon: 'error',
                             title: 'Gagal Menyimpan',
                             text: data.message || 'Terjadi kesalahan.',
-                            confirmButtonColor: '#16a34a'
+                            confirmButtonColor: '#2563eb'
                         });
                     }
                 } catch (err) {
@@ -1862,7 +2907,6 @@
             });
         }
 
-        // Change Current User Credentials
         const changePassForm = document.getElementById('changePassForm');
         if (changePassForm) {
             changePassForm.addEventListener('submit', async (e) => {
@@ -1888,7 +2932,7 @@
                             icon: 'success',
                             title: 'Berhasil',
                             text: 'Informasi profil / password akun Anda berhasil diperbarui.',
-                            confirmButtonColor: '#16a34a'
+                            confirmButtonColor: '#2563eb'
                         });
                         document.getElementById('currPassword').value = '';
                         document.getElementById('newPassword').value = '';
@@ -1897,7 +2941,7 @@
                             icon: 'error',
                             title: 'Gagal',
                             text: data.message || 'Password saat ini salah.',
-                            confirmButtonColor: '#16a34a'
+                            confirmButtonColor: '#2563eb'
                         });
                     }
                 } catch (err) {
@@ -1916,7 +2960,7 @@
             
             const downloadBtn = document.getElementById('qrModalDownload');
             downloadBtn.href = qrUrl;
-            downloadBtn.download = `QR_${qrCode}_${name.replace(/\s+/g, '_')}.png`;
+            downloadBtn.download = `qr_presenter_semnasretro_${qrCode.toLowerCase()}.png`;
 
             document.getElementById('qrModalTicketLink').href = `${window.BASE_URL}/ticket/${qrCode}`;
 
@@ -1945,9 +2989,6 @@
             document.getElementById('lanModal').classList.add('hidden');
         }
 
-        // ==========================================
-        // CSV IMPORT FUNCTIONS
-        // ==========================================
         function openImportModal() {
             document.getElementById('csvFileInput').value = '';
             document.getElementById('csvFileName').textContent = 'Klik untuk memilih file CSV';
@@ -2008,14 +3049,14 @@
                                     <p class="font-medium text-slate-700">${escapeHtml(data.message)}</p>
                                     <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1 font-mono text-xs">
                                         <div class="flex justify-between"><span>Total Diproses:</span> <strong>${s.total}</strong></div>
-                                        <div class="flex justify-between text-emerald-700"><span>Data Baru Ditambahkan:</span> <strong>+${s.inserted}</strong></div>
-                                        <div class="flex justify-between text-blue-700"><span>Data Diperbarui:</span> <strong>${s.updated}</strong></div>
+                                        <div class="flex justify-between text-blue-700"><span>Data Baru Ditambahkan:</span> <strong>+${s.inserted}</strong></div>
+                                        <div class="flex justify-between text-indigo-700"><span>Data Diperbarui:</span> <strong>${s.updated}</strong></div>
                                         <div class="flex justify-between text-slate-500"><span>Data Dilewati:</span> <strong>${s.skipped}</strong></div>
                                         ${s.errors > 0 ? `<div class="flex justify-between text-rose-600"><span>Baris Error:</span> <strong>${s.errors}</strong></div>` : ''}
                                     </div>
                                 </div>
                             `,
-                            confirmButtonColor: '#16a34a'
+                            confirmButtonColor: '#2563eb'
                         });
                         loadParticipantsData();
                         updateStats();
@@ -2060,7 +3101,6 @@
             }
         }
 
-        // Debounce search input
         let searchDebounce = null;
         document.getElementById('searchInput').addEventListener('input', () => {
             clearTimeout(searchDebounce);
@@ -2073,10 +3113,28 @@
             loadParticipantsData();
         });
 
-        // Page Load Init
+        document.getElementById('filterRuangan').addEventListener('change', () => {
+            loadParticipantsData();
+        });
+
+        const presSearch = document.getElementById('presSearchInput');
+        if (presSearch) {
+            presSearch.addEventListener('input', () => {
+                renderPresentationsTable();
+            });
+        }
+
+        const presFilterRuangan = document.getElementById('presFilterRuangan');
+        if (presFilterRuangan) {
+            presFilterRuangan.addEventListener('change', () => {
+                renderPresentationsTable();
+            });
+        }
+
         window.addEventListener('DOMContentLoaded', () => {
             initCameraOptions();
             updateStats();
+            loadDistinctRuangan();
             loadParticipantsData();
             {% if is_superadmin %}
             loadAdminUsersData();

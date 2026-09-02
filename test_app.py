@@ -75,7 +75,7 @@ class SeminarAttendanceSystemTestCase(unittest.TestCase):
         # Sekarang akses /console menampilkan Dashboard Console Admin
         auth_console = self.app.get('/console')
         self.assertEqual(auth_console.status_code, 200)
-        self.assertTrue('Console Absensi Seminar' in auth_console.data.decode('utf-8'))
+        self.assertTrue('Console Absensi Presenter' in auth_console.data.decode('utf-8'))
 
         # Logout
         self.app.post('/api/logout')
@@ -392,5 +392,277 @@ class SeminarAttendanceSystemTestCase(unittest.TestCase):
         self.assertIn('085711223344', csv_text)
         self.assertIn('087855667788', csv_text)
 
+    def test_12_proxy_prefix_support(self):
+        """Uji fungsionalitas subpath prefix /absen dan header proxy"""
+        # Request dengan header X-Forwarded-Prefix dari reverse proxy Nginx
+        headers = {
+            'X-Forwarded-Prefix': '/absen',
+            'X-Forwarded-Proto': 'https',
+            'Host': 'ppid.ft.unmul.ac.id'
+        }
+
+        # 1. Halaman utama harus menyertakan window.BASE_URL = "/absen"
+        res = self.app.get('/', headers=headers)
+        self.assertEqual(res.status_code, 200)
+        html = res.data.decode('utf-8')
+        self.assertIn('window.BASE_URL = "/absen"', html)
+        self.assertIn('href="/absen/"', html)
+
+        # 2. Redirect tanpa login ke /admin harus mengarahkan ke /absen/console
+        res_admin = self.app.get('/admin', headers=headers)
+        self.assertEqual(res_admin.status_code, 302)
+        self.assertIn('/absen/console', res_admin.location)
+
+        # 3. Endpoint network-info harus mengenali prefix publik
+        res_net = self.app.get('/api/network-info', headers=headers)
+        self.assertEqual(res_net.status_code, 200)
+        net_data = json.loads(res_net.data)
+        self.assertEqual(net_data['prefix'], '/absen')
+        self.assertIn('/absen', net_data['register_url_lan'])
+
+    def test_13_presentation_crud_and_public_api(self):
+        """Uji manajemen judul presentasi (CRUD Admin) dan endpoint publik dropdown"""
+        self.login_admin()
+
+        # 1. Tambah judul presentasi manual
+        add_res = self.app.post('/api/admin/presentations', json={
+            'judul': 'Penerapan Transformer untuk Analisis Sentimen',
+            'ruangan': 'Ruang 101'
+        })
+        self.assertEqual(add_res.status_code, 200)
+        pres_id = json.loads(add_res.data)['data']['id']
+
+        # 2. Ambil list admin
+        list_res = self.app.get('/api/admin/presentations')
+        self.assertEqual(list_res.status_code, 200)
+        list_data = json.loads(list_res.data)
+        self.assertEqual(len(list_data['data']), 1)
+        self.assertEqual(list_data['data'][0]['judul'], 'Penerapan Transformer untuk Analisis Sentimen')
+        self.assertEqual(list_data['data'][0]['ruangan'], 'Ruang 101')
+        self.assertFalse(list_data['data'][0]['is_taken'])
+
+        # 3. Ambil list publik (untuk dropdown registrasi)
+        pub_res = self.app.get('/api/presentations/public')
+        self.assertEqual(pub_res.status_code, 200)
+        pub_data = json.loads(pub_res.data)['data']
+        self.assertEqual(len(pub_data), 1)
+        self.assertEqual(pub_data[0]['id'], pres_id)
+        self.assertFalse(pub_data[0]['is_taken'])
+
+        # 4. Edit judul & ruangan
+        edit_res = self.app.post(f'/api/admin/presentations/{pres_id}', json={
+            'judul': 'Penerapan LLM & Transformer untuk Sentimen',
+            'ruangan': 'Ruang A-1'
+        })
+        self.assertEqual(edit_res.status_code, 200)
+        updated_pres = database.get_presentation_by_id(pres_id)
+        self.assertEqual(updated_pres['judul'], 'Penerapan LLM & Transformer untuk Sentimen')
+        self.assertEqual(updated_pres['ruangan'], 'Ruang A-1')
+
+        # 5. Hapus judul
+        del_res = self.app.delete(f'/api/admin/presentations/{pres_id}')
+        self.assertEqual(del_res.status_code, 200)
+        self.assertIsNone(database.get_presentation_by_id(pres_id))
+
+    def test_14_presentation_csv_import_and_template(self):
+        """Uji download template TSV (Tab Delimited) judul dan bulk import judul dari TSV / CSV"""
+        self.login_admin()
+
+        # 1. Download/Redirect template TSV Google Sheets
+        tpl_res = self.app.get('/api/admin/presentations/template-csv')
+        self.assertEqual(tpl_res.status_code, 302)
+        self.assertIn('docs.google.com/spreadsheets', tpl_res.location)
+
+        # 2. Impor judul dari file TSV (Tab Delimited)
+        import io
+        tsv_content = "Judul Presentasi\tRuangan\nAnalisis Big Data untuk Smart City\tRuang Alpha\nKeamanan Jaringan IoT Berbasis Blockchain\tRuang Beta\nOptimasi Algoritma Genetika pada Robotika\tRuang Gamma\n"
+        data = {
+            'file': (io.BytesIO(tsv_content.encode('utf-8')), 'daftar_judul.tsv')
+        }
+        imp_res = self.app.post('/api/admin/presentations/import-csv', data=data, content_type='multipart/form-data')
+        self.assertEqual(imp_res.status_code, 200)
+        imp_data = json.loads(imp_res.data)
+        self.assertTrue(imp_data['success'])
+        self.assertEqual(imp_data['summary']['inserted'], 3)
+
+        # Verifikasi judul masuk ke database
+        all_pres = database.get_all_presentations()
+        self.assertEqual(len(all_pres), 3)
+
+    def test_15_single_presenter_claim_restriction(self):
+        """Uji aturan 1 judul hanya 1 presenter (mencegah judul ganda/double-booking)"""
+        # 1. Buat 1 judul
+        pres = database.add_presentation('Sistem Deteksi Penyakit Tanaman', 'Ruang Botani')
+        pres_id = pres['id']
+
+        # 2. Presenter 1 mendaftar memilih judul tersebut -> Sukses
+        r1 = self.app.post('/api/register', json={
+            'presentation_id': pres_id,
+            'nim_nip': '12345001',
+            'nama_lengkap': 'Presenter Pertama',
+            'no_hp': '0811111111',
+            'institusi': 'IPB',
+            'pekerjaan': 'Dosen'
+        })
+        self.assertEqual(r1.status_code, 200)
+        d1 = json.loads(r1.data)['data']
+        self.assertEqual(d1['judul_presentasi'], 'Sistem Deteksi Penyakit Tanaman')
+        self.assertEqual(d1['ruangan'], 'Ruang Botani')
+
+        # 3. Presenter 2 mencoba mendaftar dengan judul yang SAMA -> Gagal (400)
+        r2 = self.app.post('/api/register', json={
+            'presentation_id': pres_id,
+            'nim_nip': '12345002',
+            'nama_lengkap': 'Presenter Kedua',
+            'no_hp': '0822222222',
+            'institusi': 'ITB',
+            'pekerjaan': 'Mahasiswa'
+        })
+        self.assertEqual(r2.status_code, 400)
+        r2_data = json.loads(r2.data)
+        self.assertFalse(r2_data['success'])
+        self.assertIn('sudah dipilih', r2_data['message'])
+
+        # 4. Cek API publik: status judul harus is_taken: true dengan presenter_name: 'Presenter Pertama'
+        pub_res = self.app.get('/api/presentations/public')
+        pub_items = json.loads(pub_res.data)['data']
+        target_pres = next(p for p in pub_items if p['id'] == pres_id)
+        self.assertTrue(target_pres['is_taken'])
+        self.assertEqual(target_pres['presenter_name'], 'Presenter Pertama')
+
+    def test_16_participant_export_and_import_with_presentation(self):
+        """Uji ekspor & impor peserta yang menyertakan Judul Presentasi dan Ruangan"""
+        self.login_admin()
+
+        # Buat judul dan daftarkan presenter
+        pres = database.add_presentation('AI dalam Medis', 'Ruang 301')
+        self.app.post('/api/register', json={
+            'presentation_id': pres['id'],
+            'nim_nip': '555001',
+            'nama_lengkap': 'dr. Maya Sari',
+            'no_hp': '0812555001',
+            'institusi': 'RS Medika',
+            'pekerjaan': 'Praktisi'
+        })
+
+        # 1. Export CSV harus memiliki header Judul Presentasi dan Ruangan
+        exp_res = self.app.get('/api/export-csv')
+        self.assertEqual(exp_res.status_code, 200)
+        csv_text = exp_res.data.decode('utf-8')
+        self.assertIn('Judul Presentasi', csv_text)
+        self.assertIn('Ruangan', csv_text)
+        self.assertIn('AI dalam Medis', csv_text)
+        self.assertIn('Ruang 301', csv_text)
+
+        # 2. Impor CSV dengan kolom Judul Presentasi dan Ruangan
+        import io
+        import_csv = """No,Kode QR,NIM / NIP,Nama Lengkap,Judul Presentasi,Ruangan,No. HP / WA,Institusi,Pekerjaan,Status,Waktu Pendaftaran,Waktu Hadir
+1,IMPPRES001,666001,Dr. Hendra Gunawan,Cyber Security Framework,Ruang Lab A,0812666001,Universitas Brawijaya,Dosen,Peserta (Hadir),2026-09-01 08:00:00,2026-09-01 09:00:00
+"""
+        data = {
+            'file': (io.BytesIO(import_csv.encode('utf-8')), 'presenters.csv'),
+            'overwrite': 'true'
+        }
+        res_imp = self.app.post('/api/import-csv', data=data, content_type='multipart/form-data')
+        self.assertEqual(res_imp.status_code, 200)
+        
+        # Verifikasi data presenter tersimpan
+        p = database.get_participant_by_qr('IMPPRES001')
+        self.assertIsNotNone(p)
+        self.assertEqual(p['nama_lengkap'], 'Dr. Hendra Gunawan')
+        self.assertEqual(p['judul_presentasi'], 'Cyber Security Framework')
+        self.assertEqual(p['ruangan'], 'Ruang Lab A')
+        self.assertEqual(p['status'], 'peserta')
+
+    def test_17_distinct_ruangan_and_filtering(self):
+        """Uji endpoint distinct ruangan dan filter peserta berdasarkan ruangan"""
+        self.login_admin()
+
+        database.add_presentation('Judul 1', 'Ruang Alpha')
+        database.add_presentation('Judul 2', 'Ruang Beta')
+        database.add_presentation('Judul 3', 'Ruang Alpha')
+
+        rooms = database.get_distinct_ruangan()
+        self.assertEqual(sorted(rooms), ['Ruang Alpha', 'Ruang Beta'])
+
+    def test_18_presentation_bulk_delete(self):
+        """Uji endpoint bulk delete judul presentasi (hapus banyak judul sekaligus via checkbox)"""
+        self.login_admin()
+
+        p1 = database.add_presentation('Judul Hapus 1', 'Ruang A')
+        p2 = database.add_presentation('Judul Hapus 2', 'Ruang B')
+        p3 = database.add_presentation('Judul Simpan 3', 'Ruang C')
+
+        # Hapus p1 dan p2 sekaligus
+        del_res = self.app.post('/api/admin/presentations/bulk-delete', json={
+            'ids': [p1['id'], p2['id']]
+        })
+        self.assertEqual(del_res.status_code, 200)
+        del_json = json.loads(del_res.data)
+        self.assertTrue(del_json['success'])
+        self.assertEqual(del_json['count'], 2)
+
+        # Verifikasi di database
+        self.assertIsNone(database.get_presentation_by_id(p1['id']))
+        self.assertIsNone(database.get_presentation_by_id(p2['id']))
+        self.assertIsNotNone(database.get_presentation_by_id(p3['id']))
+
+    def test_19_participant_bulk_delete(self):
+        """Uji endpoint bulk delete data presenter/peserta (hapus banyak data sekaligus via checkbox)"""
+        self.login_admin()
+
+        # Daftarkan 3 presenter
+        pres1 = database.add_presentation('Paper 1', 'Ruang 1')
+        pres2 = database.add_presentation('Paper 2', 'Ruang 2')
+        pres3 = database.add_presentation('Paper 3', 'Ruang 3')
+
+        r1 = self.app.post('/api/register', json={
+            'presentation_id': pres1['id'],
+            'nim_nip': '99001',
+            'nama_lengkap': 'Presenter 1',
+            'no_hp': '081299001',
+            'institusi': 'Kampus 1',
+            'pekerjaan': 'Mahasiswa'
+        })
+        r2 = self.app.post('/api/register', json={
+            'presentation_id': pres2['id'],
+            'nim_nip': '99002',
+            'nama_lengkap': 'Presenter 2',
+            'no_hp': '081299002',
+            'institusi': 'Kampus 2',
+            'pekerjaan': 'Dosen'
+        })
+        r3 = self.app.post('/api/register', json={
+            'presentation_id': pres3['id'],
+            'nim_nip': '99003',
+            'nama_lengkap': 'Presenter 3',
+            'no_hp': '081299003',
+            'institusi': 'Kampus 3',
+            'pekerjaan': 'Praktisi'
+        })
+
+        id1 = json.loads(r1.data)['data']['id']
+        id2 = json.loads(r2.data)['data']['id']
+        id3 = json.loads(r3.data)['data']['id']
+
+        # Hapus id1 dan id2 secara bersamaan
+        bulk_res = self.app.post('/api/participants/bulk-delete', json={
+            'ids': [id1, id2]
+        })
+        self.assertEqual(bulk_res.status_code, 200)
+        bulk_json = json.loads(bulk_res.data)
+        self.assertTrue(bulk_json['success'])
+        self.assertEqual(bulk_json['count'], 2)
+
+        # Verifikasi peserta 1 dan 2 terhapus, peserta 3 masih ada
+        self.assertIsNone(database.get_participant_by_nim('99001'))
+        self.assertIsNone(database.get_participant_by_nim('99002'))
+        self.assertIsNotNone(database.get_participant_by_nim('99003'))
+
+        # Verifikasi judul 1 dan 2 kembali tersedia
+        pres1_after = database.get_presentation_by_id(pres1['id'])
+        self.assertFalse(pres1_after['is_taken'])
+
 if __name__ == '__main__':
     unittest.main()
+
