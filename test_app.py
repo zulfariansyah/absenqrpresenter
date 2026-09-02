@@ -663,6 +663,24 @@ class SeminarAttendanceSystemTestCase(unittest.TestCase):
         pres1_after = database.get_presentation_by_id(pres1['id'])
         self.assertFalse(pres1_after['is_taken'])
 
+    def test_20_presenter_api_aliases(self):
+        """Uji endpoint alias /apipresenter dan /absenpresenter/api"""
+        # Test login via /apipresenter/login
+        res1 = self.app.post('/apipresenter/login', json={'username': 'admin', 'password': 'admin123'})
+        self.assertEqual(res1.status_code, 200)
+
+        # Test login via /absenpresenter/api/login
+        res2 = self.app.post('/absenpresenter/api/login', json={'username': 'admin', 'password': 'admin123'})
+        self.assertEqual(res2.status_code, 200)
+
+        # Test public presentations via /apipresenter/presentations/public
+        res3 = self.app.get('/apipresenter/presentations/public')
+        self.assertEqual(res3.status_code, 200)
+
+        # Test public presentations via /absenpresenter/api/presentations/public
+        res4 = self.app.get('/absenpresenter/api/presentations/public')
+        self.assertEqual(res4.status_code, 200)
+
 if __name__ == '__main__':
     unittest.main()
 

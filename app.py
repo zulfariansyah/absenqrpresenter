@@ -15,8 +15,8 @@ app = Flask(__name__)
 # Dukungan Reverse Proxy (Nginx subpath / header X-Forwarded-Prefix & Proto)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
-app.config['SECRET_KEY'] = 'seminar-secret-key-2026'
-app.config['SESSION_COOKIE_NAME'] = 'session_absen_presenter'
+app.config['SECRET_KEY'] = 'presenter-semnasretro-secret-key-2026'
+app.config['SESSION_COOKIE_NAME'] = 'session_presenter_semnas'
 app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static', 'uploads')
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
@@ -153,9 +153,27 @@ def ticket(qr_code):
         return render_template('ticket.html', participant=None, error="Tiket QR Code tidak ditemukan.")
     return render_template('ticket.html', participant=participant, error=None)
 
+def presenter_route(rule, **options):
+    """Mendaftarkan route untuk path standar (/api/...), alias /apipresenter/..., dan subpath /absenpresenter/api/..."""
+    def decorator(f):
+        endpoint = options.pop('endpoint', None)
+        orig_endpoint = endpoint or f.__name__
+        app.add_url_rule(rule, orig_endpoint, f, **options)
+        
+        if rule.startswith('/api/'):
+            sub_rule = rule[5:]
+            app.add_url_rule(f'/apipresenter/{sub_rule}', orig_endpoint + '_alias_apipres', f, **options)
+            app.add_url_rule(f'/absenpresenter/api/{sub_rule}', orig_endpoint + '_alias_absenpres', f, **options)
+        elif rule.startswith('/api'):
+            sub_rule = rule[4:]
+            app.add_url_rule(f'/apipresenter{sub_rule}', orig_endpoint + '_alias_apipres', f, **options)
+            app.add_url_rule(f'/absenpresenter/api{sub_rule}', orig_endpoint + '_alias_absenpres', f, **options)
+        return f
+    return decorator
+
 # ======================= AUTH & API ENDPOINTS =======================
 
-@app.route('/api/login', methods=['POST'])
+@presenter_route('/api/login', methods=['POST'])
 def api_login():
     """Memverifikasi username & password admin"""
     data = request.get_json() or {}
@@ -186,7 +204,7 @@ def api_login():
     else:
         return jsonify({'success': False, 'message': 'Username atau password admin salah!'}), 401
 
-@app.route('/api/logout', methods=['POST', 'GET'])
+@presenter_route('/api/logout', methods=['POST', 'GET'])
 def api_logout():
     """Keluar dari sesi admin console"""
     session.clear()
@@ -194,7 +212,7 @@ def api_logout():
         return redirect(url_for('console'))
     return jsonify({'success': True, 'message': 'Logout berhasil.'})
 
-@app.route('/api/admin/change-credentials', methods=['POST'])
+@presenter_route('/api/admin/change-credentials', methods=['POST'])
 @admin_required
 def api_change_credentials():
     """Mengubah password akun admin yang sedang login"""
@@ -225,14 +243,14 @@ def api_change_credentials():
 
 # ======================= SUPER ADMIN MANAGEMENT ENDPOINTS =======================
 
-@app.route('/api/admin/users', methods=['GET'])
+@presenter_route('/api/admin/users', methods=['GET'])
 @superadmin_required
 def api_get_admins():
     """Mengambil daftar seluruh user admin (Khusus Super Admin)"""
     admins = database.get_all_admins()
     return jsonify({'success': True, 'data': admins})
 
-@app.route('/api/admin/users', methods=['POST'])
+@presenter_route('/api/admin/users', methods=['POST'])
 @superadmin_required
 def api_create_admin():
     """Membuat user admin baru (Khusus Super Admin)"""
@@ -251,7 +269,7 @@ def api_create_admin():
 
     return jsonify({'success': True, 'message': f'Admin {nama} berhasil dibuat!', 'data': new_admin})
 
-@app.route('/api/admin/users/<int:admin_id>/reset-password', methods=['POST'])
+@presenter_route('/api/admin/users/<int:admin_id>/reset-password', methods=['POST'])
 @superadmin_required
 def api_reset_admin_password(admin_id):
     """Mengatur/Reset password admin manapun (Khusus Super Admin)"""
@@ -270,7 +288,7 @@ def api_reset_admin_password(admin_id):
         return jsonify({'success': True, 'message': f'Password untuk {target_admin["nama"]} ({target_admin["username"]}) berhasil diperbarui!'})
     return jsonify({'success': False, 'message': 'Gagal memperbarui password.'}), 500
 
-@app.route('/api/admin/users/<int:admin_id>/edit', methods=['POST'])
+@presenter_route('/api/admin/users/<int:admin_id>/edit', methods=['POST'])
 @superadmin_required
 def api_edit_admin_profile(admin_id):
     """Mengubah nama, username, atau role admin (Khusus Super Admin)"""
@@ -292,7 +310,7 @@ def api_edit_admin_profile(admin_id):
         return jsonify({'success': True, 'message': 'Data admin berhasil diperbarui!'})
     return jsonify({'success': False, 'message': 'Gagal memperbarui data admin (kemungkinan username sudah dipakai).'}), 400
 
-@app.route('/api/admin/users/<int:admin_id>', methods=['DELETE'])
+@presenter_route('/api/admin/users/<int:admin_id>', methods=['DELETE'])
 @superadmin_required
 def api_delete_admin(admin_id):
     """Menghapus user admin (Khusus Super Admin)"""
@@ -325,13 +343,13 @@ def is_rate_limited(ip_address, max_requests=5, window_seconds=60):
     registration_history[ip_address] = valid_timestamps
     return False
 
-@app.route('/api/presentations/public', methods=['GET'])
+@presenter_route('/api/presentations/public', methods=['GET'])
 def api_presentations_public():
     """Mengambil daftar judul presentasi untuk form registrasi publik (dengan flag is_taken)"""
     items = database.get_available_presentations()
     return jsonify({'success': True, 'data': items})
 
-@app.route('/api/register', methods=['POST'])
+@presenter_route('/api/register', methods=['POST'])
 def api_register():
     """Menerima pendaftaran presenter baru dengan pemilihan judul presentasi & ruangan"""
     data = request.get_json() or {}
@@ -461,7 +479,7 @@ def api_register():
             'message': f'Gagal mendaftarkan presenter: {str(e)}'
         }), 500
 
-@app.route('/api/scan', methods=['POST'])
+@presenter_route('/api/scan', methods=['POST'])
 @admin_required
 def api_scan():
     """
@@ -481,7 +499,7 @@ def api_scan():
     result = database.mark_attendance(qr_code)
     return jsonify(result)
 
-@app.route('/api/participants', methods=['GET'])
+@presenter_route('/api/participants', methods=['GET'])
 @admin_required
 def api_participants():
     """Mengambil data peserta berdasarkan status (pendaftar/peserta), pencarian, pekerjaan, dan ruangan"""
@@ -497,7 +515,7 @@ def api_participants():
         'data': rows
     })
 
-@app.route('/api/stats', methods=['GET'])
+@presenter_route('/api/stats', methods=['GET'])
 @admin_required
 def api_stats():
     """Mengambil data statistik jumlah pendaftar, peserta hadir, judul presentasi, dan persentase"""
@@ -507,7 +525,7 @@ def api_stats():
         'stats': stats
     })
 
-@app.route('/api/participant/<int:participant_id>/toggle', methods=['POST'])
+@presenter_route('/api/participant/<int:participant_id>/toggle', methods=['POST'])
 @admin_required
 def api_toggle_status(participant_id):
     """Mengubah status pendaftar <-> peserta secara manual"""
@@ -521,7 +539,7 @@ def api_toggle_status(participant_id):
         'data': updated
     })
 
-@app.route('/api/participant/<int:participant_id>', methods=['DELETE'])
+@presenter_route('/api/participant/<int:participant_id>', methods=['DELETE'])
 @admin_required
 def api_delete_participant(participant_id):
     """Menghapus data pendaftar/peserta"""
@@ -534,7 +552,7 @@ def api_delete_participant(participant_id):
         'message': 'Data berhasil dihapus.'
     })
 
-@app.route('/api/participants/bulk-delete', methods=['POST'])
+@presenter_route('/api/participants/bulk-delete', methods=['POST'])
 @admin_required
 def api_bulk_delete_participants():
     """Menghapus beberapa data presenter sekaligus berdasarkan daftar ID terpilih"""
@@ -550,7 +568,7 @@ def api_bulk_delete_participants():
         'count': count
     })
 
-@app.route('/api/settings', methods=['GET'])
+@presenter_route('/api/settings', methods=['GET'])
 def api_get_settings():
     """Mengambil data pengaturan nama acara & logo saat ini"""
     settings = database.get_all_settings()
@@ -559,7 +577,7 @@ def api_get_settings():
         'settings': settings
     })
 
-@app.route('/api/settings', methods=['POST'])
+@presenter_route('/api/settings', methods=['POST'])
 @admin_required
 def api_update_settings():
     """Memperbarui nama acara dan mengunggah logo acara"""
@@ -594,7 +612,7 @@ def api_update_settings():
         'settings': updated_settings
     })
 
-@app.route('/api/settings/reset-logo', methods=['POST'])
+@presenter_route('/api/settings/reset-logo', methods=['POST'])
 @admin_required
 def api_reset_logo():
     """Mereset logo acara kembali ke logo default sistem"""
@@ -605,7 +623,7 @@ def api_reset_logo():
         'settings': database.get_all_settings()
     })
 
-@app.route('/api/network-info')
+@presenter_route('/api/network-info')
 def api_network_info():
     """Mengembalikan informasi IP jaringan lokal dan link akses"""
     port = int(os.environ.get('PORT', 5001))
@@ -628,7 +646,7 @@ def api_network_info():
         'admin_url_lan': f"{public_base}/console" if is_behind_domain else f"{base_lan}/console",
     })
 
-@app.route('/api/qr-url.png')
+@presenter_route('/api/qr-url.png')
 def api_qr_url():
     """Menghasilkan QR Code untuk URL (misal link registrasi lokal / server)"""
     url_data = request.args.get('data', '').strip()
@@ -658,7 +676,7 @@ def api_qr_url():
     
     return send_file(buffer, mimetype='image/png')
 
-@app.route('/api/qr/<qr_code>.png')
+@presenter_route('/api/qr/<qr_code>.png')
 def api_qr_image(qr_code):
     """Menghasilkan file gambar PNG QR Code secara dinamis"""
     qr = qrcode.QRCode(
@@ -684,7 +702,7 @@ def api_qr_image(qr_code):
 
 # ======================= PRESENTATIONS (JUDUL & RUANGAN) ADMIN ENDPOINTS =======================
 
-@app.route('/api/admin/presentations', methods=['GET'])
+@presenter_route('/api/admin/presentations', methods=['GET'])
 @admin_required
 def api_get_presentations():
     """Mengambil seluruh data judul presentasi, daftar ruangan, dan statistik"""
@@ -700,7 +718,7 @@ def api_get_presentations():
         'stats': stats
     })
 
-@app.route('/api/admin/presentations', methods=['POST'])
+@presenter_route('/api/admin/presentations', methods=['POST'])
 @admin_required
 def api_add_presentation():
     """Menambahkan judul presentasi baru secara manual"""
@@ -717,7 +735,7 @@ def api_add_presentation():
         'data': pres
     })
 
-@app.route('/api/admin/presentations/<int:pres_id>', methods=['PUT', 'POST'])
+@presenter_route('/api/admin/presentations/<int:pres_id>', methods=['PUT', 'POST'])
 @admin_required
 def api_update_presentation(pres_id):
     """Mengubah data judul presentasi dan ruangan"""
@@ -732,7 +750,7 @@ def api_update_presentation(pres_id):
         return jsonify({'success': True, 'message': 'Judul presentasi berhasil diperbarui!'})
     return jsonify({'success': False, 'message': 'Judul presentasi tidak ditemukan atau gagal diperbarui.'}), 404
 
-@app.route('/api/admin/presentations/<int:pres_id>', methods=['DELETE'])
+@presenter_route('/api/admin/presentations/<int:pres_id>', methods=['DELETE'])
 @admin_required
 def api_delete_presentation(pres_id):
     """Menghapus 1 judul presentasi"""
@@ -741,14 +759,14 @@ def api_delete_presentation(pres_id):
         return jsonify({'success': True, 'message': 'Judul presentasi berhasil dihapus.'})
     return jsonify({'success': False, 'message': 'Judul presentasi tidak ditemukan.'}), 404
 
-@app.route('/api/admin/presentations/reset', methods=['POST'])
+@presenter_route('/api/admin/presentations/reset', methods=['POST'])
 @admin_required
 def api_reset_presentations():
     """Menghapus seluruh daftar judul presentasi"""
     count = database.delete_all_presentations()
     return jsonify({'success': True, 'message': f'Semua judul presentasi ({count} data) berhasil dihapus.'})
 
-@app.route('/api/admin/presentations/bulk-delete', methods=['POST'])
+@presenter_route('/api/admin/presentations/bulk-delete', methods=['POST'])
 @admin_required
 def api_bulk_delete_presentations():
     """Menghapus beberapa judul presentasi sekaligus berdasarkan daftar ID terpilih"""
@@ -781,13 +799,13 @@ def detect_delimiter(sample_text):
 
 GOOGLE_SHEET_TEMPLATE_URL = "https://docs.google.com/spreadsheets/d/1EHrfQH0qMvrTPE1OOtHUb959HQfnVVj13unNSs25VJI/edit?usp=sharing"
 
-@app.route('/api/admin/presentations/template-csv', methods=['GET'])
+@presenter_route('/api/admin/presentations/template-csv', methods=['GET'])
 @admin_required
 def api_presentation_template_csv():
     """Mengarahkan pengguna ke Google Sheets template resmi untuk diunduh sebagai TSV"""
     return redirect(GOOGLE_SHEET_TEMPLATE_URL, code=302)
 
-@app.route('/api/admin/presentations/import-csv', methods=['POST'])
+@presenter_route('/api/admin/presentations/import-csv', methods=['POST'])
 @admin_required
 def api_import_presentations_csv():
     """Mengimpor daftar judul presentasi & ruangan dari file TSV / CSV (Tab Delimiter)"""
@@ -886,7 +904,7 @@ def api_import_presentations_csv():
     except Exception as e:
         return jsonify({'success': False, 'message': f'Gagal memproses file TSV / CSV judul: {str(e)}'}), 500
 
-@app.route('/api/export-csv')
+@presenter_route('/api/export-csv')
 @admin_required
 def export_csv():
     """Mengekspor daftar pendaftar/peserta ke file CSV dengan format UTF-8 (kompatibel Excel)"""
@@ -926,7 +944,7 @@ def export_csv():
         headers={"Content-Disposition": f"attachment;filename={filename}"}
     )
 
-@app.route('/api/import-csv', methods=['POST'])
+@presenter_route('/api/import-csv', methods=['POST'])
 @admin_required
 def import_csv():
     """Mengimpor data pendaftar & peserta keseluruhan dari file CSV backup"""
