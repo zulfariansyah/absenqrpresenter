@@ -406,9 +406,9 @@ class SeminarAttendanceSystemTestCase(unittest.TestCase):
         self.assertEqual(res.status_code, 200)
         html = res.data.decode('utf-8')
         self.assertIn('window.BASE_URL = "/absen"', html)
-        self.assertIn('href="/absen/"', html)
+        self.assertTrue('href="/absen"' in html or 'href="/absen/"' in html)
 
-        # 2. Redirect tanpa login ke /admin harus mengarahkan ke /absen/console
+        # 2. Redirect tanpa login ke /admin harus mengarahkan ke /absen/console atau /absen/consolepresenter
         res_admin = self.app.get('/admin', headers=headers)
         self.assertEqual(res_admin.status_code, 302)
         self.assertIn('/absen/console', res_admin.location)

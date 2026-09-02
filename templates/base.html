@@ -73,7 +73,11 @@
         }
     </style>
     <script>
-        window.BASE_URL = "{{ request.script_root }}" || (window.location.pathname.startsWith('/absenpresenter') || window.location.pathname.startsWith('/consolepresenter') ? '/absenpresenter' : '');
+        {% if request.script_root %}
+        window.BASE_URL = "{{ request.script_root }}";
+        {% else %}
+        window.BASE_URL = (window.location.pathname.startsWith('/absenpresenter') || window.location.pathname.startsWith('/consolepresenter') ? '/absenpresenter' : '');
+        {% endif %}
     </script>
     {% block extra_head %}{% endblock %}
 </head>

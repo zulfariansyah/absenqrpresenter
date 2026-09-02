@@ -117,21 +117,23 @@ def inject_settings():
         'is_superadmin': session.get('admin_role') == 'superadmin'
     }
 
+@app.route('/absenpresenter')
 @app.route('/')
 def index():
     """Halaman Pendaftaran Seminar (Publik Peserta)"""
     return render_template('register.html')
 
-@app.route('/consolepresenter')
 @app.route('/absenpresenter/consolepresenter')
+@app.route('/absenpresenter/console')
 @app.route('/console')
+@app.route('/consolepresenter')
 def console():
     """Halaman Console Admin (menampilkan Form Login jika belum login, atau Dashboard jika sudah login)"""
     if not session.get('admin_logged_in'):
         return render_template('login.html')
     return render_template('admin.html')
 
-@app.route('/admin')
+@app.route('/admin', strict_slashes=False)
 def admin():
     """Redirect /admin ke /consolepresenter"""
     return redirect(url_for('console'))
@@ -141,6 +143,8 @@ def login():
     """Redirect /login ke /consolepresenter"""
     return redirect(url_for('console'))
 
+@app.route('/absenpresenter/ticket/<qr_code>')
+@app.route('/ticketpresenter/<qr_code>')
 @app.route('/ticket/<qr_code>')
 def ticket(qr_code):
     """Halaman E-Ticket Digital Peserta"""
