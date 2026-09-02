@@ -153,7 +153,12 @@
                     body: JSON.stringify({ username, password })
                 });
 
-                const data = await res.json();
+                let data = null;
+                try {
+                    data = await res.json();
+                } catch (jsonErr) {
+                    throw new Error(`Server merespons status HTTP ${res.status} (${res.statusText || 'Error'}). Pastikan service PM2 berjalan di Port 5001.`);
+                }
 
                 if (res.ok && data.success) {
                     window.location.reload();
@@ -169,13 +174,13 @@
                 console.error(err);
                 Swal.fire({
                     icon: 'error',
-                    title: 'Kesalahan Server',
-                    text: 'Tidak dapat menghubungi server.',
+                    title: 'Kesalahan Koneksi',
+                    text: err.message || 'Tidak dapat menghubungi server.',
                     confirmButtonColor: '#2563eb'
                 });
             } finally {
                 loginBtn.disabled = false;
-                loginBtnText.textContent = 'Masuk ke Console';
+                loginBtnText.textContent = 'Masuk ke Panel Admin';
             }
         });
     </script>

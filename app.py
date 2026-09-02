@@ -60,7 +60,7 @@ def get_local_ip():
 
     return '127.0.0.1'
 
-def find_available_port(start_port=5001, max_tries=20):
+def find_available_port(start_port=5001, max_tries=5):
     """Mencari port bebas secara otomatis jika port default sedang digunakan program lain"""
     import socket
     if os.environ.get('PORT'):
