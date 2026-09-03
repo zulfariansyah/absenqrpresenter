@@ -76,6 +76,10 @@ def init_db():
     # Set default event settings if not exist
     cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('event_name', 'Seminar & Konferensi Presenter 2026')")
     cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('event_logo', '')")
+    cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('event_favicon', '')")
+    cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('event_info', '')")
+    cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('title_register', '')")
+    cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('title_admin', '')")
     
     # Inisialisasi 5 User Admin Bawaan
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -246,9 +250,17 @@ def get_all_settings():
     conn.close()
     settings = {row['key']: row['value'] for row in rows}
     if 'event_name' not in settings:
-        settings['event_name'] = 'Seminar Nasional Teknologi & Inovasi 2026'
+        settings['event_name'] = 'Seminar & Konferensi Presenter 2026'
     if 'event_logo' not in settings:
         settings['event_logo'] = ''
+    if 'event_favicon' not in settings:
+        settings['event_favicon'] = ''
+    if 'event_info' not in settings:
+        settings['event_info'] = ''
+    if 'title_register' not in settings:
+        settings['title_register'] = ''
+    if 'title_admin' not in settings:
+        settings['title_admin'] = ''
     return settings
 
 # ======================= PRESENTATION TITLES (JUDUL & RUANGAN) =======================
@@ -760,6 +772,25 @@ def get_stats():
     cursor.execute("SELECT COUNT(DISTINCT presentation_id) FROM participants WHERE presentation_id IS NOT NULL")
     judul_terisi = cursor.fetchone()[0]
     
+    # Statistik kehadiran per pekerjaan / profesi (khusus status = 'peserta' / sudah hadir)
+    cursor.execute("""
+        SELECT pekerjaan, COUNT(*) as count 
+        FROM participants 
+        WHERE status = 'peserta' 
+        GROUP BY pekerjaan
+    """)
+    job_rows = cursor.fetchall()
+    job_stats_hadir = {row['pekerjaan']: row['count'] for row in job_rows}
+
+    # Statistik seluruh pendaftar per pekerjaan
+    cursor.execute("""
+        SELECT pekerjaan, COUNT(*) as count 
+        FROM participants 
+        GROUP BY pekerjaan
+    """)
+    total_job_rows = cursor.fetchall()
+    job_stats_total = {row['pekerjaan']: row['count'] for row in total_job_rows}
+    
     conn.close()
     
     attendance_rate = round((peserta_count / total * 100), 1) if total > 0 else 0
@@ -772,5 +803,7 @@ def get_stats():
         "attendance_rate": attendance_rate,
         "total_judul": total_judul,
         "judul_terisi": judul_terisi,
-        "judul_tersedia": judul_tersedia
+        "judul_tersedia": judul_tersedia,
+        "job_stats_hadir": job_stats_hadir,
+        "job_stats_total": job_stats_total
     }

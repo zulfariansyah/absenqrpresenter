@@ -686,6 +686,63 @@ class SeminarAttendanceSystemTestCase(unittest.TestCase):
         res4 = self.app.get('/absenpresenter/api/presentations/public')
         self.assertEqual(res4.status_code, 200)
 
+    def test_21_mahasiswa_s1_s2_and_settings_features(self):
+        """Uji registrasi Mahasiswa S1 & S2, breakdown profesi hadir, title tags, dan event info"""
+        # 1. Registrasi Mahasiswa S1 & Mahasiswa S2
+        r_s1 = self.app.post('/api/register', json={
+            'nim_nip': '220101',
+            'nama_lengkap': 'Presenter S1 Test',
+            'no_hp': '081234567801',
+            'institusi': 'Unmul',
+            'pekerjaan': 'Mahasiswa S1',
+            'judul_presentasi': 'Makalah S1',
+            'ruangan': 'Ruang 101'
+        })
+        self.assertEqual(r_s1.status_code, 200)
+        qr_s1 = json.loads(r_s1.data)['data']['qr_code']
+
+        r_s2 = self.app.post('/api/register', json={
+            'nim_nip': '220102',
+            'nama_lengkap': 'Presenter S2 Test',
+            'no_hp': '081234567802',
+            'institusi': 'Unmul',
+            'pekerjaan': 'Mahasiswa S2',
+            'judul_presentasi': 'Makalah S2',
+            'ruangan': 'Ruang 102'
+        })
+        self.assertEqual(r_s2.status_code, 200)
+        qr_s2 = json.loads(r_s2.data)['data']['qr_code']
+
+        # 2. Tandai kehadiran untuk Mahasiswa S1
+        self.login_admin()
+        scan_res = self.app.post('/api/scan', json={'qr_code': qr_s1})
+        self.assertEqual(scan_res.status_code, 200)
+
+        # 3. Cek endpoint stats
+        stats_res = self.app.get('/api/stats')
+        self.assertEqual(stats_res.status_code, 200)
+        stats_data = json.loads(stats_res.data)['stats']
+        self.assertIn('job_stats_hadir', stats_data)
+        self.assertEqual(stats_data['job_stats_hadir'].get('Mahasiswa S1'), 1)
+
+        # 4. Uji update settings (title_register, title_admin, event_info)
+        set_res = self.app.post('/api/settings', data={
+            'event_name': 'Semnastek Retro 2026',
+            'title_register': 'Form Pendaftaran Presenter Retro',
+            'title_admin': 'Panel Admin Presenter Retro',
+            'event_info': 'Info WA: https://chat.whatsapp.com/test'
+        })
+        self.assertEqual(set_res.status_code, 200)
+        settings_out = json.loads(set_res.data)['settings']
+        self.assertEqual(settings_out['title_register'], 'Form Pendaftaran Presenter Retro')
+        self.assertEqual(settings_out['title_admin'], 'Panel Admin Presenter Retro')
+        self.assertEqual(settings_out['event_info'], 'Info WA: https://chat.whatsapp.com/test')
+
+        # 5. Uji reset favicon
+        reset_fav = self.app.post('/api/settings/reset-favicon')
+        self.assertEqual(reset_fav.status_code, 200)
+        self.assertEqual(json.loads(reset_fav.data)['settings']['event_favicon'], '')
+
 if __name__ == '__main__':
     unittest.main()
 

@@ -134,6 +134,19 @@
                     </div>
                 </div>
 
+                {% if event_settings.event_info %}
+                <!-- Informasi & Pengumuman Acara -->
+                <div class="p-4 rounded-2xl bg-indigo-50/90 border border-indigo-200 text-left text-xs space-y-1.5 shadow-xs">
+                    <div class="font-bold text-indigo-950 flex items-center gap-1.5 text-xs">
+                        <i data-lucide="megaphone" class="w-4 h-4 text-indigo-600"></i>
+                        <span>Informasi & Tautan Acara:</span>
+                    </div>
+                    <div class="text-indigo-900 leading-relaxed text-[11px] sm:text-xs">
+                        {{ event_settings.event_info | linkify | safe }}
+                    </div>
+                </div>
+                {% endif %}
+
                 <!-- Action buttons (No print) -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 no-print pt-2">
                     <button type="button" onclick="saveTicketQrToGallery()" id="btnSaveTicketGallery"

@@ -3,7 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Console Admin Presenter - {{ event_settings.event_name }}</title>
+    <title>{{ event_settings.title_admin if event_settings.title_admin else ('Admin Presenter - ' ~ event_settings.event_name) }}</title>
+    {% if event_settings.event_favicon %}
+    <link rel="icon" href="{{ event_settings.event_favicon }}">
+    {% else %}
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    {% endif %}
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -418,6 +423,39 @@
                                 </div>
                                 <span id="badgeSubPeserta" class="px-2 py-0.5 rounded-full text-xs font-extrabold bg-slate-200 text-slate-800">0</span>
                             </button>
+
+                            <!-- Ringkasan Hadir Per Profesi -->
+                            <div class="mt-4 pt-3.5 border-t border-slate-200">
+                                <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2.5 flex items-center justify-between">
+                                    <span class="flex items-center gap-1.5">
+                                        <i data-lucide="users" class="w-3.5 h-3.5 text-blue-600"></i>
+                                        Hadir Per Profesi
+                                    </span>
+                                    <span id="profHadirTotal" class="text-[10px] font-extrabold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">0 Hadir</span>
+                                </div>
+                                <div class="space-y-1.5 text-xs" id="professionStatsList">
+                                    <div class="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-100 hover:bg-blue-50/50 transition">
+                                        <span class="text-slate-600 font-medium">Mahasiswa S1</span>
+                                        <span id="prof_hadir_s1" class="font-bold font-mono text-blue-700 bg-white px-2 py-0.5 rounded border border-slate-200">0</span>
+                                    </div>
+                                    <div class="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-100 hover:bg-blue-50/50 transition">
+                                        <span class="text-slate-600 font-medium">Mahasiswa S2</span>
+                                        <span id="prof_hadir_s2" class="font-bold font-mono text-blue-700 bg-white px-2 py-0.5 rounded border border-slate-200">0</span>
+                                    </div>
+                                    <div class="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-100 hover:bg-blue-50/50 transition">
+                                        <span class="text-slate-600 font-medium">Dosen</span>
+                                        <span id="prof_hadir_dosen" class="font-bold font-mono text-blue-700 bg-white px-2 py-0.5 rounded border border-slate-200">0</span>
+                                    </div>
+                                    <div class="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-100 hover:bg-blue-50/50 transition">
+                                        <span class="text-slate-600 font-medium">Praktisi</span>
+                                        <span id="prof_hadir_praktisi" class="font-bold font-mono text-blue-700 bg-white px-2 py-0.5 rounded border border-slate-200">0</span>
+                                    </div>
+                                    <div class="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-100 hover:bg-blue-50/50 transition">
+                                        <span class="text-slate-600 font-medium">Lainnya</span>
+                                        <span id="prof_hadir_lainnya" class="font-bold font-mono text-blue-700 bg-white px-2 py-0.5 rounded border border-slate-200">0</span>
+                                    </div>
+                                </div>
+                            </div>
                         </nav>
                     </div>
 
@@ -474,8 +512,9 @@
 
                             <select id="filterPekerjaan" class="px-2.5 py-1.5 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 bg-white">
                                 <option value="Semua">Semua Profesi</option>
+                                <option value="Mahasiswa S1">Mahasiswa S1</option>
+                                <option value="Mahasiswa S2">Mahasiswa S2</option>
                                 <option value="Dosen">Dosen</option>
-                                <option value="Mahasiswa">Mahasiswa</option>
                                 <option value="Praktisi">Praktisi</option>
                                 <option value="Lainnya">Lainnya</option>
                             </select>
@@ -754,8 +793,8 @@
                 </div>
 
                 <form id="settingsForm" class="p-6 sm:p-8 space-y-6" enctype="multipart/form-data">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div class="space-y-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <div class="space-y-5">
                             <div>
                                 <label for="inputEventName" class="block text-sm font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
                                     <i data-lucide="type" class="w-4 h-4 text-blue-600"></i>
@@ -765,42 +804,116 @@
                                     value="{{ event_settings.event_name }}"
                                     placeholder="Contoh: Seminar Nasional AI & Data Science 2026"
                                     class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-800 text-sm transition shadow-sm">
-                                <p class="text-xs text-slate-500 mt-1">Nama ini akan tampil di judul website, formulir pendaftaran, tiket presenter, dan laporan.</p>
+                                <p class="text-xs text-slate-500 mt-1">Nama ini akan tampil di judul formulir pendaftaran, tiket presenter, dan laporan.</p>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label for="inputTitleRegister" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1">
+                                        <i data-lucide="tag" class="w-3.5 h-3.5 text-blue-600"></i>
+                                        Title Tag Form Pendaftaran
+                                    </label>
+                                    <input type="text" id="inputTitleRegister" name="title_register"
+                                        value="{{ event_settings.title_register }}"
+                                        placeholder="Pendaftaran Presenter - SEMNAS..."
+                                        class="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-800 text-xs transition shadow-sm">
+                                    <p class="text-[11px] text-slate-400 mt-1">Tampil di judul tab browser pendaftar.</p>
+                                </div>
+                                <div>
+                                    <label for="inputTitleAdmin" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1">
+                                        <i data-lucide="shield" class="w-3.5 h-3.5 text-blue-600"></i>
+                                        Title Tag Admin Console
+                                    </label>
+                                    <input type="text" id="inputTitleAdmin" name="title_admin"
+                                        value="{{ event_settings.title_admin }}"
+                                        placeholder="Admin Presenter - SEMNAS..."
+                                        class="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-800 text-xs transition shadow-sm">
+                                    <p class="text-[11px] text-slate-400 mt-1">Tampil di judul tab browser admin/login.</p>
+                                </div>
                             </div>
 
                             <div>
-                                <label class="block text-sm font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
-                                    <i data-lucide="image" class="w-4 h-4 text-blue-600"></i>
-                                    Logo Resmi Acara
+                                <label for="inputEventInfo" class="block text-sm font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
+                                    <i data-lucide="megaphone" class="w-4 h-4 text-blue-600"></i>
+                                    Informasi Tambahan / Pengumuman Acara
                                 </label>
-                                <div class="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-2xl p-4 text-center bg-slate-50 transition cursor-pointer" onclick="document.getElementById('inputEventLogo').click()">
-                                    <input type="file" id="inputEventLogo" name="event_logo" accept="image/*" class="hidden" onchange="handleLogoPreview(this)">
-                                    <div class="w-12 h-12 rounded-xl bg-white text-slate-400 flex items-center justify-center mx-auto mb-2 border border-slate-200 shadow-sm">
-                                        <i data-lucide="upload-cloud" class="w-6 h-6 text-blue-600"></i>
-                                    </div>
-                                    <p class="text-xs font-semibold text-slate-700">Klik untuk memilih file logo baru</p>
-                                    <p class="text-[11px] text-slate-400 mt-0.5">Format didukung: PNG, JPG, JPEG, SVG, WEBP (Maksimal 5MB)</p>
-                                </div>
-
-                                <div class="flex items-center justify-between mt-2">
-                                    <span id="logoFileName" class="text-xs text-slate-500 italic">Belum ada file baru dipilih</span>
-                                    <button type="button" onclick="resetToDefaultLogo()" class="text-xs text-rose-600 hover:text-rose-800 font-semibold inline-flex items-center gap-1">
-                                        <i data-lucide="rotate-ccw" class="w-3 h-3"></i> Gunakan Logo Bawaan
-                                    </button>
-                                </div>
+                                <textarea id="inputEventInfo" name="event_info" rows="3"
+                                    placeholder="Contoh: Silakan bergabung ke Grup WhatsApp Presenter melalui link: https://chat.whatsapp.com/xyz123 atau unduh susunan acara di https://seminar.id/rundown"
+                                    class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-800 text-xs sm:text-sm transition shadow-sm leading-relaxed">{{ event_settings.event_info }}</textarea>
+                                <p class="text-xs text-slate-500 mt-1">
+                                    💡 <em>Tautan / URL (https://...) yang Anda masukkan akan otomatis menjadi link aktif yang dapat diklik di form registrasi dan jendela tiket QR presenter.</em>
+                                </p>
                             </div>
                         </div>
 
-                        <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
-                                <i data-lucide="eye" class="w-4 h-4 text-blue-600"></i>
-                                Pratinjau Tampilan (Live Preview)
-                            </label>
-                            <div class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-6 text-white border border-slate-700 shadow-lg text-center space-y-3">
-                                <div class="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur p-2 mx-auto flex items-center justify-center border border-white/20 shadow-md">
-                                    <img id="previewLogoImg" src="{{ event_settings.event_logo if event_settings.event_logo else '' }}" alt="Preview Logo" class="w-full h-full object-contain {% if not event_settings.event_logo %}hidden{% endif %}">
-                                    <div id="previewDefaultIcon" class="{% if event_settings.event_logo %}hidden{% endif %} text-white flex items-center justify-center">
-                                        <i data-lucide="presentation" class="w-8 h-8 text-blue-400"></i>
+                        <div class="space-y-5">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <!-- Upload Logo -->
+                                <div>
+                                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1">
+                                        <i data-lucide="image" class="w-3.5 h-3.5 text-blue-600"></i>
+                                        Logo Resmi Acara
+                                    </label>
+                                    <div class="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-2xl p-3 text-center bg-slate-50 transition cursor-pointer" onclick="document.getElementById('inputEventLogo').click()">
+                                        <input type="file" id="inputEventLogo" name="event_logo" accept="image/*" class="hidden" onchange="handleLogoPreview(this)">
+                                        <div class="w-9 h-9 rounded-xl bg-white text-slate-400 flex items-center justify-center mx-auto mb-1.5 border border-slate-200 shadow-sm">
+                                            <i data-lucide="upload-cloud" class="w-5 h-5 text-blue-600"></i>
+                                        </div>
+                                        <p class="text-[11px] font-semibold text-slate-700">Upload Logo Baru</p>
+                                        <p class="text-[10px] text-slate-400">PNG, JPG, SVG, WEBP</p>
+                                    </div>
+                                    <div class="flex items-center justify-between mt-1.5">
+                                        <span id="logoFileName" class="text-[10px] text-slate-500 truncate max-w-[120px]">Belum ada file baru</span>
+                                        <button type="button" onclick="resetToDefaultLogo()" class="text-[10px] text-rose-600 hover:text-rose-800 font-semibold inline-flex items-center gap-0.5">
+                                            <i data-lucide="rotate-ccw" class="w-2.5 h-2.5"></i> Reset
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Upload Favicon -->
+                                <div>
+                                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1">
+                                        <i data-lucide="globe" class="w-3.5 h-3.5 text-indigo-600"></i>
+                                        FavIcon Tab Browser
+                                    </label>
+                                    <div class="border-2 border-dashed border-slate-300 hover:border-indigo-500 rounded-2xl p-3 text-center bg-slate-50 transition cursor-pointer" onclick="document.getElementById('inputEventFavicon').click()">
+                                        <input type="file" id="inputEventFavicon" name="event_favicon" accept=".ico,.png,.svg,.jpg,.jpeg,.webp" class="hidden" onchange="handleFaviconPreview(this)">
+                                        <div class="w-9 h-9 rounded-xl bg-white text-slate-400 flex items-center justify-center mx-auto mb-1.5 border border-slate-200 shadow-sm">
+                                            <i data-lucide="image" class="w-5 h-5 text-indigo-600"></i>
+                                        </div>
+                                        <p class="text-[11px] font-semibold text-slate-700">Upload FavIcon Baru</p>
+                                        <p class="text-[10px] text-slate-400">ICO, PNG, SVG, JPG</p>
+                                    </div>
+                                    <div class="flex items-center justify-between mt-1.5">
+                                        <span id="faviconFileName" class="text-[10px] text-slate-500 truncate max-w-[120px]">Belum ada file baru</span>
+                                        <button type="button" onclick="resetToDefaultFavicon()" class="text-[10px] text-rose-600 hover:text-rose-800 font-semibold inline-flex items-center gap-0.5">
+                                            <i data-lucide="rotate-ccw" class="w-2.5 h-2.5"></i> Reset
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Live Preview Card -->
+                            <div class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-5 text-white border border-slate-700 shadow-md text-center space-y-3">
+                                <div class="flex items-center justify-center gap-4">
+                                    <div class="text-center">
+                                        <div class="w-14 h-14 rounded-2xl bg-white/10 backdrop-blur p-2 mx-auto flex items-center justify-center border border-white/20 shadow-md">
+                                            <img id="previewLogoImg" src="{{ event_settings.event_logo if event_settings.event_logo else '' }}" alt="Preview Logo" class="w-full h-full object-contain {% if not event_settings.event_logo %}hidden{% endif %}">
+                                            <div id="previewDefaultIcon" class="{% if event_settings.event_logo %}hidden{% endif %} text-white flex items-center justify-center">
+                                                <i data-lucide="presentation" class="w-7 h-7 text-blue-400"></i>
+                                            </div>
+                                        </div>
+                                        <span class="text-[10px] text-slate-400 mt-1 block">Logo Acara</span>
+                                    </div>
+
+                                    <div class="text-center">
+                                        <div class="w-11 h-11 rounded-xl bg-white/10 backdrop-blur p-1.5 mx-auto flex items-center justify-center border border-white/20 shadow-md">
+                                            <img id="previewFaviconImg" src="{{ event_settings.event_favicon if event_settings.event_favicon else '' }}" alt="Preview Favicon" class="w-full h-full object-contain {% if not event_settings.event_favicon %}hidden{% endif %}">
+                                            <div id="previewDefaultFaviconIcon" class="{% if event_settings.event_favicon %}hidden{% endif %} text-white flex items-center justify-center">
+                                                <i data-lucide="globe" class="w-5 h-5 text-indigo-400"></i>
+                                            </div>
+                                        </div>
+                                        <span class="text-[10px] text-slate-400 mt-1 block">FavIcon</span>
                                     </div>
                                 </div>
 
@@ -808,13 +921,8 @@
                                     <span class="px-2.5 py-0.5 bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[10px] font-bold uppercase tracking-wider rounded-full">
                                         E-Ticket Presenter
                                     </span>
-                                    <h3 id="previewEventName" class="text-lg font-black tracking-tight mt-1.5">{{ event_settings.event_name }}</h3>
-                                    <p class="text-xs text-slate-300 mt-0.5">Sistem Absensi Presenter Seminar</p>
-                                </div>
-
-                                <div class="pt-3 border-t border-slate-700/80 text-[11px] text-slate-400 flex items-center justify-center gap-1">
-                                    <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-blue-400"></i>
-                                    <span>Logo & nama acara langsung tersinkronisasi</span>
+                                    <h3 id="previewEventName" class="text-base font-black tracking-tight mt-1">{{ event_settings.event_name }}</h3>
+                                    <p class="text-[11px] text-slate-300 mt-0.5">Sistem Absensi Presenter Seminar</p>
                                 </div>
                             </div>
                         </div>
@@ -1672,6 +1780,21 @@
 
                     document.getElementById('badgeSubPendaftar').textContent = s.pendaftar;
                     document.getElementById('badgeSubPeserta').textContent = s.peserta;
+
+                    // Update breakdown hadir per profesi
+                    const jh = s.job_stats_hadir || {};
+                    const s1Hadir = (jh['Mahasiswa S1'] || 0) + (jh['Mahasiswa'] || 0);
+                    const s2Hadir = jh['Mahasiswa S2'] || 0;
+                    const dosenHadir = jh['Dosen'] || 0;
+                    const praktisiHadir = jh['Praktisi'] || 0;
+                    const lainnyaHadir = jh['Lainnya'] || 0;
+
+                    if (document.getElementById('prof_hadir_s1')) document.getElementById('prof_hadir_s1').textContent = s1Hadir;
+                    if (document.getElementById('prof_hadir_s2')) document.getElementById('prof_hadir_s2').textContent = s2Hadir;
+                    if (document.getElementById('prof_hadir_dosen')) document.getElementById('prof_hadir_dosen').textContent = dosenHadir;
+                    if (document.getElementById('prof_hadir_praktisi')) document.getElementById('prof_hadir_praktisi').textContent = praktisiHadir;
+                    if (document.getElementById('prof_hadir_lainnya')) document.getElementById('prof_hadir_lainnya').textContent = lainnyaHadir;
+                    if (document.getElementById('profHadirTotal')) document.getElementById('profHadirTotal').textContent = `${s.peserta} Hadir`;
                 }
             } catch (e) {
                 console.error('Error stats', e);
@@ -2855,7 +2978,7 @@
         function handleLogoPreview(input) {
             if (input.files && input.files[0]) {
                 const file = input.files[0];
-                document.getElementById('logoFileName').textContent = `File dipilih: ${file.name}`;
+                document.getElementById('logoFileName').textContent = file.name;
                 
                 const reader = new FileReader();
                 reader.onload = (e) => {
@@ -2888,7 +3011,7 @@
                 const data = await res.json();
                 if (data.success) {
                     document.getElementById('inputEventLogo').value = '';
-                    document.getElementById('logoFileName').textContent = 'Logo default aktif';
+                    document.getElementById('logoFileName').textContent = 'Default';
                     const img = document.getElementById('previewLogoImg');
                     const defaultIcon = document.getElementById('previewDefaultIcon');
                     img.src = '';
@@ -2899,6 +3022,62 @@
                         icon: 'success',
                         title: 'Logo Direset',
                         text: 'Logo berhasil dikembalikan ke default.',
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function handleFaviconPreview(input) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                document.getElementById('faviconFileName').textContent = file.name;
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = document.getElementById('previewFaviconImg');
+                    const defaultIcon = document.getElementById('previewDefaultFaviconIcon');
+                    img.src = e.target.result;
+                    img.classList.remove('hidden');
+                    defaultIcon.classList.add('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        async function resetToDefaultFavicon() {
+            const confirm = await Swal.fire({
+                title: 'Reset FavIcon?',
+                text: 'FavIcon tab browser akan dikembalikan ke icon default sistem.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#2563eb',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Ya, Reset',
+                cancelButtonText: 'Batal'
+            });
+
+            if (!confirm.isConfirmed) return;
+
+            try {
+                const res = await fetch(`${window.BASE_URL}/api/settings/reset-favicon`, { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('inputEventFavicon').value = '';
+                    document.getElementById('faviconFileName').textContent = 'Default';
+                    const img = document.getElementById('previewFaviconImg');
+                    const defaultIcon = document.getElementById('previewDefaultFaviconIcon');
+                    img.src = '';
+                    img.classList.add('hidden');
+                    defaultIcon.classList.remove('hidden');
+
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'FavIcon Direset',
+                        text: 'FavIcon berhasil dikembalikan ke default.',
                         timer: 1500,
                         showConfirmButton: false
                     });

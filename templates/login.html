@@ -3,7 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login Console Presenter - {{ event_settings.event_name }}</title>
+    <title>{{ event_settings.title_admin if event_settings.title_admin else ('Admin Presenter - ' ~ event_settings.event_name) }}</title>
+    {% if event_settings.event_favicon %}
+    <link rel="icon" href="{{ event_settings.event_favicon }}">
+    {% else %}
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    {% endif %}
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>

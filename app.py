@@ -1,6 +1,8 @@
 import os
 import io
 import csv
+import re
+import html
 from datetime import datetime
 from functools import wraps
 from flask import Flask, render_template, request, jsonify, send_file, Response, session, redirect, url_for, send_from_directory
@@ -22,6 +24,32 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 # Inisialisasi Database
 database.init_db()
+
+def normalize_media_url(url):
+    """Menormalisasi URL static/media agar otomatis berawalan /absenpresenter"""
+    if not url:
+        return ''
+    if url.startswith('http') or url.startswith('data:'):
+        return url
+    if not url.startswith('/absenpresenter'):
+        if url.startswith('/static/'):
+            return f"/absenpresenter{url}"
+        return f"/absenpresenter/static/uploads/{url.lstrip('/')}"
+    return url
+
+@app.template_filter('linkify')
+def linkify(text):
+    """Mengubah link URL dalam teks menjadi hyperlink yang bisa diklik (new window)"""
+    if not text:
+        return ''
+    escaped = html.escape(str(text))
+    url_pattern = re.compile(r'(https?://[^\s<>"]+|www\.[^\s<>"]+)')
+    def replace_url(match):
+        url = match.group(0)
+        href = url if url.startswith(('http://', 'https://')) else f'http://{url}'
+        return f'<a href="{href}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline font-semibold break-all inline-flex items-center gap-1">{url} <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline shrink-0"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></a>'
+    linked = url_pattern.sub(replace_url, escaped)
+    return linked.replace('\n', '<br>')
 
 ACTIVE_PORT = 5001
 
@@ -102,13 +130,8 @@ def inject_settings():
     """Menyediakan variabel global pengaturan acara, IP lokal, dan status login ke seluruh template"""
     global ACTIVE_PORT
     settings = database.get_all_settings()
-    logo = settings.get('event_logo', '')
-    if logo and not logo.startswith('http') and not logo.startswith('data:'):
-        if not logo.startswith('/absenpresenter'):
-            if logo.startswith('/static/'):
-                settings['event_logo'] = f"/absenpresenter{logo}"
-            else:
-                settings['event_logo'] = f"/absenpresenter/static/uploads/{logo.lstrip('/')}"
+    settings['event_logo'] = normalize_media_url(settings.get('event_logo', ''))
+    settings['event_favicon'] = normalize_media_url(settings.get('event_favicon', ''))
 
     local_ip = get_local_ip()
     port = ACTIVE_PORT
@@ -438,7 +461,7 @@ def api_register():
             'message': 'Nama Institusi harus berisi antara 2 hingga 120 karakter!'
         }), 400
         
-    valid_jobs = ['Mahasiswa', 'Dosen', 'Praktisi', 'Lainnya']
+    valid_jobs = ['Mahasiswa S1', 'Mahasiswa S2', 'Mahasiswa', 'Dosen', 'Praktisi', 'Lainnya']
     if raw_pekerjaan not in valid_jobs:
         return jsonify({
             'success': False,
@@ -580,12 +603,8 @@ def api_bulk_delete_participants():
 def api_get_settings():
     """Mengambil data pengaturan nama acara & logo saat ini"""
     settings = database.get_all_settings()
-    logo = settings.get('event_logo', '')
-    if logo and not logo.startswith('http') and not logo.startswith('data:') and not logo.startswith('/absenpresenter'):
-        if logo.startswith('/static/'):
-            settings['event_logo'] = f"/absenpresenter{logo}"
-        else:
-            settings['event_logo'] = f"/absenpresenter/static/uploads/{logo.lstrip('/')}"
+    settings['event_logo'] = normalize_media_url(settings.get('event_logo', ''))
+    settings['event_favicon'] = normalize_media_url(settings.get('event_favicon', ''))
     return jsonify({
         'success': True,
         'settings': settings
@@ -594,10 +613,19 @@ def api_get_settings():
 @presenter_route('/api/settings', methods=['POST'])
 @admin_required
 def api_update_settings():
-    """Memperbarui nama acara dan mengunggah logo acara"""
+    """Memperbarui nama acara, title tag, informasi tambahan, logo, dan favicon acara"""
     event_name = request.form.get('event_name', '').strip()
     if event_name:
         database.set_setting('event_name', event_name)
+
+    title_register = request.form.get('title_register', '').strip()
+    database.set_setting('title_register', title_register)
+
+    title_admin = request.form.get('title_admin', '').strip()
+    database.set_setting('title_admin', title_admin)
+
+    event_info = request.form.get('event_info', '').strip()
+    database.set_setting('event_info', event_info)
 
     # Periksa apakah ada file logo yang diunggah
     if 'event_logo' in request.files:
@@ -615,17 +643,31 @@ def api_update_settings():
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(file_path)
             
-            # Simpan relative URL
             logo_url = f"/absenpresenter/static/uploads/{filename}"
             database.set_setting('event_logo', logo_url)
 
+    # Periksa apakah ada file favicon yang diunggah
+    if 'event_favicon' in request.files:
+        file = request.files['event_favicon']
+        if file and file.filename != '':
+            ext = os.path.splitext(file.filename)[1].lower()
+            allowed_fav_exts = ['.ico', '.png', '.svg', '.jpg', '.jpeg', '.webp']
+            if ext not in allowed_fav_exts:
+                return jsonify({
+                    'success': False,
+                    'message': 'Format FavIcon tidak didukung! Gunakan ICO, PNG, SVG, JPG, atau WEBP.'
+                }), 400
+
+            filename = f"event_favicon_{datetime.now().strftime('%Y%m%d%H%M%S')}{ext}"
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(file_path)
+            
+            fav_url = f"/absenpresenter/static/uploads/{filename}"
+            database.set_setting('event_favicon', fav_url)
+
     updated_settings = database.get_all_settings()
-    logo = updated_settings.get('event_logo', '')
-    if logo and not logo.startswith('http') and not logo.startswith('data:') and not logo.startswith('/absenpresenter'):
-        if logo.startswith('/static/'):
-            updated_settings['event_logo'] = f"/absenpresenter{logo}"
-        else:
-            updated_settings['event_logo'] = f"/absenpresenter/static/uploads/{logo.lstrip('/')}"
+    updated_settings['event_logo'] = normalize_media_url(updated_settings.get('event_logo', ''))
+    updated_settings['event_favicon'] = normalize_media_url(updated_settings.get('event_favicon', ''))
 
     return jsonify({
         'success': True,
@@ -638,10 +680,27 @@ def api_update_settings():
 def api_reset_logo():
     """Mereset logo acara kembali ke logo default sistem"""
     database.set_setting('event_logo', '')
+    updated_settings = database.get_all_settings()
+    updated_settings['event_logo'] = normalize_media_url(updated_settings.get('event_logo', ''))
+    updated_settings['event_favicon'] = normalize_media_url(updated_settings.get('event_favicon', ''))
     return jsonify({
         'success': True,
         'message': 'Logo acara berhasil direset ke default.',
-        'settings': database.get_all_settings()
+        'settings': updated_settings
+    })
+
+@presenter_route('/api/settings/reset-favicon', methods=['POST'])
+@admin_required
+def api_reset_favicon():
+    """Mereset favicon acara kembali ke default sistem"""
+    database.set_setting('event_favicon', '')
+    updated_settings = database.get_all_settings()
+    updated_settings['event_logo'] = normalize_media_url(updated_settings.get('event_logo', ''))
+    updated_settings['event_favicon'] = normalize_media_url(updated_settings.get('event_favicon', ''))
+    return jsonify({
+        'success': True,
+        'message': 'FavIcon acara berhasil direset ke default.',
+        'settings': updated_settings
     })
 
 @presenter_route('/api/network-info')
