@@ -145,7 +145,9 @@ def inject_settings():
         'admin_username': session.get('admin_username', 'admin'),
         'admin_name': session.get('admin_name', 'Super Admin'),
         'admin_role': session.get('admin_role', 'admin'),
-        'is_superadmin': session.get('admin_role') == 'superadmin'
+        'assigned_rooms': session.get('admin_assigned_rooms', ''),
+        'is_superadmin': session.get('admin_role') == 'superadmin',
+        'is_operator': session.get('admin_role') == 'operator'
     }
 
 @app.route('/absenpresenter/static/<path:filename>')
@@ -160,13 +162,23 @@ def index():
     """Halaman Pendaftaran Seminar (Publik Peserta)"""
     return render_template('register.html')
 
+@app.route('/absenpresenter/operator')
+@app.route('/operator')
+def operator_view():
+    """Halaman Console Khusus Operator Ruangan"""
+    if not session.get('admin_logged_in') and not session.get('presenter_admin_logged_in'):
+        return redirect(url_for('admin'))
+    return render_template('operator.html', assigned_rooms=session.get('admin_assigned_rooms', ''))
+
 @app.route('/absenpresenter/admin')
 @app.route('/adminpresenter')
 @app.route('/admin')
 def admin():
-    """Halaman Dashboard Admin Presenter (menampilkan Form Login jika belum login, atau Dashboard jika sudah login)"""
+    """Halaman Dashboard Admin Presenter (Form Login, Operator View, atau Admin Dashboard)"""
     if not session.get('admin_logged_in') and not session.get('presenter_admin_logged_in'):
         return render_template('login.html')
+    if session.get('admin_role') == 'operator':
+        return render_template('operator.html', assigned_rooms=session.get('admin_assigned_rooms', ''))
     return render_template('admin.html')
 
 @app.route('/login')
@@ -206,7 +218,7 @@ def presenter_route(rule, **options):
 
 @presenter_route('/api/login', methods=['POST'])
 def api_login():
-    """Memverifikasi username & password admin"""
+    """Memverifikasi username & password admin/operator"""
     data = request.get_json() or {}
     username = data.get('username', '').strip()
     password = data.get('password', '').strip()
@@ -221,6 +233,7 @@ def api_login():
         session['admin_username'] = admin_user['username']
         session['admin_name'] = admin_user['nama']
         session['admin_role'] = admin_user['role']
+        session['admin_assigned_rooms'] = admin_user.get('assigned_rooms', '')
         database.update_admin_last_login(admin_user['id'])
         return jsonify({
             'success': True,
@@ -229,7 +242,8 @@ def api_login():
                 'id': admin_user['id'],
                 'username': admin_user['username'],
                 'nama': admin_user['nama'],
-                'role': admin_user['role']
+                'role': admin_user['role'],
+                'assigned_rooms': admin_user.get('assigned_rooms', '')
             }
         })
     else:
@@ -284,21 +298,22 @@ def api_get_admins():
 @presenter_route('/api/admin/users', methods=['POST'])
 @superadmin_required
 def api_create_admin():
-    """Membuat user admin baru (Khusus Super Admin)"""
+    """Membuat user admin atau operator baru (Khusus Super Admin)"""
     data = request.get_json() or {}
     username = data.get('username', '').strip()
     password = data.get('password', '').strip()
     nama = data.get('nama', '').strip()
     role = data.get('role', 'admin').strip()
+    assigned_rooms = data.get('assigned_rooms', '').strip()
 
     if not username or not password or not nama:
         return jsonify({'success': False, 'message': 'Username, nama, dan password wajib diisi!'}), 400
 
-    new_admin = database.create_admin(username, password, nama, role)
+    new_admin = database.create_admin(username, password, nama, role, assigned_rooms)
     if not new_admin:
         return jsonify({'success': False, 'message': 'Username sudah digunakan, pilih username lain.'}), 400
 
-    return jsonify({'success': True, 'message': f'Admin {nama} berhasil dibuat!', 'data': new_admin})
+    return jsonify({'success': True, 'message': f'Akun {nama} ({role.capitalize()}) berhasil dibuat!', 'data': new_admin})
 
 @presenter_route('/api/admin/users/<int:admin_id>/reset-password', methods=['POST'])
 @superadmin_required
@@ -322,11 +337,12 @@ def api_reset_admin_password(admin_id):
 @presenter_route('/api/admin/users/<int:admin_id>/edit', methods=['POST'])
 @superadmin_required
 def api_edit_admin_profile(admin_id):
-    """Mengubah nama, username, atau role admin (Khusus Super Admin)"""
+    """Mengubah nama, username, role, atau assigned_rooms admin/operator (Khusus Super Admin)"""
     data = request.get_json() or {}
     nama = data.get('nama', '').strip()
     username = data.get('username', '').strip()
     role = data.get('role', '').strip()
+    assigned_rooms = data.get('assigned_rooms')
 
     target_admin = database.get_admin_by_id(admin_id)
     if not target_admin:
@@ -336,10 +352,10 @@ def api_edit_admin_profile(admin_id):
     if admin_id == session.get('admin_id') and role and role != 'superadmin':
         return jsonify({'success': False, 'message': 'Anda tidak dapat menurunkan role akun Anda sendiri.'}), 400
 
-    success = database.update_admin_profile(admin_id, nama=nama, username=username, role=role if role else None)
+    success = database.update_admin_profile(admin_id, nama=nama, username=username, role=role if role else None, assigned_rooms=assigned_rooms)
     if success:
-        return jsonify({'success': True, 'message': 'Data admin berhasil diperbarui!'})
-    return jsonify({'success': False, 'message': 'Gagal memperbarui data admin (kemungkinan username sudah dipakai).'}), 400
+        return jsonify({'success': True, 'message': 'Data akun berhasil diperbarui!'})
+    return jsonify({'success': False, 'message': 'Gagal memperbarui data akun (kemungkinan username sudah dipakai).'}), 400
 
 @presenter_route('/api/admin/users/<int:admin_id>', methods=['DELETE'])
 @superadmin_required
@@ -382,7 +398,7 @@ def api_presentations_public():
 
 @presenter_route('/api/register', methods=['POST'])
 def api_register():
-    """Menerima pendaftaran presenter baru dengan pemilihan judul presentasi & ruangan"""
+    """Menerima pendaftaran presenter baru dengan pemilihan judul presentasi, ruangan, tipe kehadiran (Online/Offline) & Link YouTube"""
     data = request.get_json() or {}
     
     # 1. Anti-Bot Honeypot: Jika field bot terisi, tolak langsung
@@ -405,6 +421,8 @@ def api_register():
     raw_no_hp = data.get('no_hp', '').strip()
     raw_institusi = data.get('institusi', '').strip()
     raw_pekerjaan = data.get('pekerjaan', '').strip()
+    raw_tipe = data.get('tipe_kehadiran', 'Offline').strip()
+    raw_youtube = data.get('link_youtube', '').strip()
     raw_pres_id = data.get('presentation_id')
     
     # 3. Validasi Keberadaan Input
@@ -414,6 +432,13 @@ def api_register():
             'message': 'Semua kolom formulir (No. Identitas, Nama Lengkap, No. HP / WhatsApp, Institusi, Pekerjaan) wajib diisi!'
         }), 400
         
+    tipe_kehadiran = 'Online' if raw_tipe.lower() == 'online' else 'Offline'
+    if tipe_kehadiran == 'Online' and not raw_youtube:
+        return jsonify({
+            'success': False,
+            'message': 'Link Video YouTube wajib diisi untuk presenter yang memilih kehadiran Online!'
+        }), 400
+
     presentation_id = None
     all_db_presentations = database.get_all_presentations()
     if all_db_presentations:
@@ -436,7 +461,7 @@ def api_register():
             except (ValueError, TypeError):
                 pass
         
-    # 4. Validasi Panjang Karakter (Mencegah Buffer/Payload Abuse)
+    # 4. Validasi Panjang Karakter
     if len(raw_nim) < 3 or len(raw_nim) > 30:
         return jsonify({
             'success': False,
@@ -468,12 +493,13 @@ def api_register():
             'message': f'Pekerjaan harus salah satu dari: {", ".join(valid_jobs)}'
         }), 400
 
-    # 5. XSS Sanitization: Escape karakter khusus HTML (<, >, &, ", ')
+    # 5. XSS Sanitization: Escape karakter khusus HTML
     nim_nip = html.escape(raw_nim)
     nama_lengkap = html.escape(raw_nama)
     no_hp = html.escape(raw_no_hp)
     institusi = html.escape(raw_institusi)
     pekerjaan = html.escape(raw_pekerjaan)
+    link_youtube = html.escape(raw_youtube) if raw_youtube else ''
 
     # 6. Deteksi Duplikasi Nomor Identitas
     existing = database.get_participant_by_nim(nim_nip)
@@ -492,7 +518,9 @@ def api_register():
             no_hp=no_hp,
             institusi=institusi,
             pekerjaan=pekerjaan,
-            presentation_id=presentation_id
+            presentation_id=presentation_id,
+            tipe_kehadiran=tipe_kehadiran,
+            link_youtube=link_youtube
         )
         return jsonify({
             'success': True,
@@ -533,13 +561,24 @@ def api_scan():
 @presenter_route('/api/participants', methods=['GET'])
 @admin_required
 def api_participants():
-    """Mengambil data peserta berdasarkan status (pendaftar/peserta), pencarian, pekerjaan, dan ruangan"""
+    """Mengambil data peserta berdasarkan status, pencarian, pekerjaan, ruangan, dan filter best presenter"""
     status = request.args.get('status')
     search = request.args.get('search')
     pekerjaan = request.args.get('pekerjaan')
     ruangan = request.args.get('ruangan')
+    best_presenter = request.args.get('best_presenter') in ['1', 'true', 'True']
+    is_presented = request.args.get('is_presented')
+    tipe_kehadiran = request.args.get('tipe_kehadiran')
     
-    rows = database.get_participants(status=status, search=search, pekerjaan=pekerjaan, ruangan=ruangan)
+    rows = database.get_participants(
+        status=status,
+        search=search,
+        pekerjaan=pekerjaan,
+        ruangan=ruangan,
+        best_presenter_only=best_presenter,
+        is_presented=is_presented,
+        tipe_kehadiran=tipe_kehadiran
+    )
     return jsonify({
         'success': True,
         'count': len(rows),
@@ -555,6 +594,49 @@ def api_stats():
         'success': True,
         'stats': stats
     })
+
+@presenter_route('/api/participant/<int:participant_id>/edit', methods=['POST'])
+@admin_required
+def api_edit_participant(participant_id):
+    """Mengubah data informasi presenter (Khusus Admin/Super Admin)"""
+    data = request.get_json() or {}
+    raw_nim = data.get('nim_nip', '').strip()
+    raw_nama = data.get('nama_lengkap', '').strip()
+    if not raw_nim or not raw_nama:
+        return jsonify({'success': False, 'message': 'No. Identitas dan Nama Lengkap wajib diisi!'}), 400
+
+    updated = database.update_participant(participant_id, data)
+    if not updated:
+        return jsonify({'success': False, 'message': 'Data presenter tidak ditemukan atau gagal diperbarui.'}), 404
+
+    return jsonify({'success': True, 'message': 'Data presenter berhasil diperbarui!', 'data': updated})
+
+@presenter_route('/api/operator/toggle-presented/<int:participant_id>', methods=['POST'])
+@admin_required
+def api_operator_toggle_presented(participant_id):
+    """Mengubah status sudah presentasi secara realtime oleh operator/admin"""
+    set_flag = request.args.get('set')
+    if set_flag == '1':
+        p = database.get_participant_by_id(participant_id)
+        if p and not p.get('is_presented'):
+            updated = database.toggle_presented(participant_id)
+        else:
+            updated = p
+    else:
+        updated = database.toggle_presented(participant_id)
+
+    if not updated:
+        return jsonify({'success': False, 'message': 'Presenter tidak ditemukan.'}), 404
+    return jsonify({'success': True, 'data': updated})
+
+@presenter_route('/api/operator/toggle-best-presenter/<int:participant_id>', methods=['POST'])
+@admin_required
+def api_operator_toggle_best_presenter(participant_id):
+    """Mengubah status Best Presenter ruangan secara realtime (maksimal 1 per ruangan)"""
+    result = database.set_best_presenter(participant_id)
+    if not result.get('success'):
+        return jsonify({'success': False, 'message': result.get('message')}), 400
+    return jsonify(result)
 
 @presenter_route('/api/participant/<int:participant_id>/toggle', methods=['POST'])
 @admin_required
@@ -990,17 +1072,25 @@ def export_csv():
     """Mengekspor daftar pendaftar/peserta ke file CSV dengan format UTF-8 (kompatibel Excel)"""
     status_filter = request.args.get('status') # 'pendaftar', 'peserta', or all
     ruangan_filter = request.args.get('ruangan')
-    rows = database.get_participants(status=status_filter, ruangan=ruangan_filter)
+    best_filter = request.args.get('best_presenter') in ['1', 'true', 'True']
+    rows = database.get_participants(status=status_filter, ruangan=ruangan_filter, best_presenter_only=best_filter)
     
     output = io.StringIO()
     # BOM untuk Excel agar encoding UTF-8 terbaca dengan rapi di Windows/Mac
     output.write('\ufeff')
     writer = csv.writer(output)
     
-    writer.writerow(['No', 'Kode QR', 'No. Identitas (NIM/NIP/NIDN/NUPTK)', 'Nama Lengkap', 'Judul Presentasi', 'Ruangan', 'No. HP / WA', 'Institusi', 'Pekerjaan', 'Status', 'Waktu Pendaftaran', 'Waktu Hadir'])
+    writer.writerow([
+        'No', 'Kode QR', 'No. Identitas (NIM/NIP/NIDN/NUPTK)', 'Nama Lengkap', 
+        'Judul Presentasi', 'Ruangan', 'Tipe Kehadiran', 'Link Video YouTube',
+        'No. HP / WA', 'Institusi', 'Pekerjaan', 'Status Presensi', 
+        'Sudah Presentasi', 'Best Presenter', 'Waktu Pendaftaran', 'Waktu Hadir'
+    ])
     
     for idx, row in enumerate(rows, start=1):
         status_label = 'Peserta (Hadir)' if row['status'] == 'peserta' else 'Pendaftar (Belum Hadir)'
+        presented_label = 'Sudah' if row.get('is_presented') else 'Belum'
+        best_label = 'Ya ⭐' if row.get('is_best_presenter') else 'Tidak'
         writer.writerow([
             idx,
             row['qr_code'],
@@ -1008,10 +1098,14 @@ def export_csv():
             row['nama_lengkap'],
             row.get('judul_presentasi') or '-',
             row.get('ruangan') or '-',
+            row.get('tipe_kehadiran') or 'Offline',
+            row.get('link_youtube') or '-',
             row['no_hp'] or '-',
             row['institusi'],
             row['pekerjaan'],
             status_label,
+            presented_label,
+            best_label,
             row['created_at'],
             row['attended_at'] or '-'
         ])
@@ -1073,10 +1167,12 @@ def import_csv():
             'nama_lengkap': ['nama lengkap', 'nama_lengkap', 'nama', 'fullname', 'name'],
             'judul_presentasi': ['judul presentasi', 'judul paper', 'judul', 'title', 'paper title', 'topik', 'judul_presentasi'],
             'ruangan': ['ruangan', 'ruang', 'room', 'lokasi', 'tempat'],
+            'tipe_kehadiran': ['tipe', 'tipe kehadiran', 'kehadiran tipe', 'tipe_kehadiran', 'mode'],
+            'link_youtube': ['link youtube', 'youtube', 'link video', 'video youtube', 'link_youtube', 'url youtube'],
             'no_hp': ['no. hp / wa', 'no hp / wa', 'no. hp', 'no hp', 'nomor hp', 'no telepon', 'telepon', 'whatsapp', 'no wa', 'phone', 'mobile', 'no_hp'],
             'institusi': ['institusi', 'instansi', 'universitas', 'kampus', 'perusahaan', 'institution'],
             'pekerjaan': ['pekerjaan', 'profesi', 'kategori', 'job', 'occupation'],
-            'status': ['status', 'status kehadiran', 'kehadiran', 'attendance'],
+            'status': ['status', 'status presensi', 'status kehadiran', 'kehadiran', 'attendance'],
             'created_at': ['waktu pendaftaran', 'created_at', 'tanggal daftar', 'waktu daftar', 'created'],
             'attended_at': ['waktu hadir', 'attended_at', 'waktu absen', 'waktu scan', 'attended']
         }
@@ -1104,12 +1200,16 @@ def import_csv():
                 continue
                 
             try:
+                tipe_kehadiran = 'Offline'
+                link_youtube = ''
                 if has_header and 'nim_nip' in header_map and 'nama_lengkap' in header_map:
                     qr_code = row[header_map['qr_code']] if 'qr_code' in header_map and header_map['qr_code'] < len(row) else ''
                     nim_nip = row[header_map['nim_nip']] if header_map['nim_nip'] < len(row) else ''
                     nama_lengkap = row[header_map['nama_lengkap']] if header_map['nama_lengkap'] < len(row) else ''
                     judul_presentasi = row[header_map['judul_presentasi']] if 'judul_presentasi' in header_map and header_map['judul_presentasi'] < len(row) else ''
                     ruangan = row[header_map['ruangan']] if 'ruangan' in header_map and header_map['ruangan'] < len(row) else '-'
+                    tipe_kehadiran = row[header_map['tipe_kehadiran']] if 'tipe_kehadiran' in header_map and header_map['tipe_kehadiran'] < len(row) else 'Offline'
+                    link_youtube = row[header_map['link_youtube']] if 'link_youtube' in header_map and header_map['link_youtube'] < len(row) else ''
                     no_hp = row[header_map['no_hp']] if 'no_hp' in header_map and header_map['no_hp'] < len(row) else ''
                     institusi = row[header_map['institusi']] if 'institusi' in header_map and header_map['institusi'] < len(row) else '-'
                     pekerjaan = row[header_map['pekerjaan']] if 'pekerjaan' in header_map and header_map['pekerjaan'] < len(row) else 'Lainnya'
@@ -1170,6 +1270,8 @@ def import_csv():
                 no_hp = html.escape((no_hp or '')[:20])
                 institusi = html.escape((institusi or '-')[:120])
                 pekerjaan = html.escape((pekerjaan or 'Lainnya')[:50])
+                tipe_kehadiran = 'Online' if 'online' in str(tipe_kehadiran).lower() else 'Offline'
+                link_youtube = html.escape(link_youtube[:255]) if link_youtube else ''
 
                 res = database.upsert_participant_from_csv(
                     qr_code=qr_code,
@@ -1181,6 +1283,8 @@ def import_csv():
                     judul_presentasi=judul_presentasi,
                     ruangan=ruangan,
                     status=status,
+                    tipe_kehadiran=tipe_kehadiran,
+                    link_youtube=link_youtube,
                     created_at=created_at,
                     attended_at=attended_at,
                     overwrite=overwrite

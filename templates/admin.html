@@ -506,11 +506,17 @@
                                 </div>
                             </div>
 
-                            <select id="filterRuangan" class="px-2.5 py-1.5 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 bg-white">
+                            <select id="filterRuangan" onchange="loadParticipantsData()" class="px-2.5 py-1.5 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 bg-white">
                                 <option value="Semua">Semua Ruangan</option>
                             </select>
 
-                            <select id="filterPekerjaan" class="px-2.5 py-1.5 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 bg-white">
+                            <select id="filterTipe" onchange="loadParticipantsData()" class="px-2.5 py-1.5 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 bg-white">
+                                <option value="Semua">Semua Tipe</option>
+                                <option value="Offline">Offline</option>
+                                <option value="Online">Online</option>
+                            </select>
+
+                            <select id="filterPekerjaan" onchange="loadParticipantsData()" class="px-2.5 py-1.5 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 bg-white">
                                 <option value="Semua">Semua Profesi</option>
                                 <option value="Mahasiswa S1">Mahasiswa S1</option>
                                 <option value="Mahasiswa S2">Mahasiswa S2</option>
@@ -518,6 +524,14 @@
                                 <option value="Praktisi">Praktisi</option>
                                 <option value="Lainnya">Lainnya</option>
                             </select>
+
+                            <!-- Best Presenter Filter (Active on Hadir Tab) -->
+                            <div id="bestPresenterFilterWrapper" class="hidden">
+                                <label class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold cursor-pointer transition select-none">
+                                    <input type="checkbox" id="filterBestPresenter" onchange="loadParticipantsData()" class="w-3.5 h-3.5 rounded text-amber-500 focus:ring-amber-400 border-amber-300 cursor-pointer">
+                                    <span>Best Presenter ⭐</span>
+                                </label>
+                            </div>
 
                             <button onclick="loadParticipantsData()" class="p-1.5 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-600 transition" title="Muat Ulang Data">
                                 <i data-lucide="rotate-cw" class="w-4 h-4"></i>
@@ -587,6 +601,12 @@
                                             <i id="partSortIcon_ruangan" data-lucide="arrow-up-down" class="w-3 h-3 text-slate-400"></i>
                                         </div>
                                     </th>
+                                    <th class="py-3 px-2.5 text-center cursor-pointer hover:bg-slate-200/70 transition" onclick="sortPartData('tipe_kehadiran')" title="Klik untuk mengurutkan">
+                                        <div class="flex items-center justify-center gap-1">
+                                            <span>Tipe</span>
+                                            <i id="partSortIcon_tipe_kehadiran" data-lucide="arrow-up-down" class="w-3 h-3 text-slate-400"></i>
+                                        </div>
+                                    </th>
                                     <th class="py-3 px-3 cursor-pointer hover:bg-slate-200/70 transition" onclick="sortPartData('no_hp')" title="Klik untuk mengurutkan">
                                         <div class="flex items-center gap-1">
                                             <span>No. HP / WA</span>
@@ -605,12 +625,12 @@
                                             <i id="partSortIcon_time" data-lucide="arrow-up-down" class="w-3 h-3 text-slate-400"></i>
                                         </div>
                                     </th>
-                                    <th class="py-3 px-3 text-center w-24">Aksi</th>
+                                    <th class="py-3 px-3 text-center w-28">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody id="participantTableBody" class="divide-y divide-slate-200">
                                 <tr>
-                                    <td colspan="11" class="text-center py-12 text-slate-400">
+                                    <td colspan="12" class="text-center py-12 text-slate-400">
                                         <i data-lucide="loader-2" class="w-6 h-6 animate-spin mx-auto mb-2 text-blue-600"></i>
                                         Memuat data...
                                     </td>
@@ -1232,10 +1252,24 @@
                 </div>
                 <div>
                     <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Role / Hak Akses</label>
-                    <select id="modalAdminRole" class="w-full px-4 py-2 rounded-xl border border-slate-300 text-slate-800 text-sm focus:ring-2 focus:ring-purple-500 bg-white">
+                    <select id="modalAdminRole" onchange="handleModalRoleChange()" class="w-full px-4 py-2 rounded-xl border border-slate-300 text-slate-800 text-sm focus:ring-2 focus:ring-purple-500 bg-white font-medium">
                         <option value="admin">Petugas Admin (Scan & Kelola Data)</option>
+                        <option value="operator">Operator Ruangan (Timer & Presentasi Ruangan)</option>
                         <option value="superadmin">Super Admin (Akses Penuh & Manajemen Akun)</option>
                     </select>
+                </div>
+
+                <!-- Assigned Rooms Field (Khusus Role Operator) -->
+                <div id="modalAssignedRoomsWrapper" class="hidden animate-fadeIn">
+                    <label class="block text-xs font-bold uppercase tracking-wider text-emerald-800 mb-1 flex items-center gap-1">
+                        <i data-lucide="door-open" class="w-3.5 h-3.5 text-emerald-600"></i>
+                        <span>Ruangan Ditugaskan (Mapping)</span>
+                    </label>
+                    <input type="text" id="modalAdminAssignedRooms" placeholder="Contoh: C402 atau C402, C403"
+                        class="w-full px-4 py-2 rounded-xl border border-emerald-300 text-slate-800 text-sm focus:ring-2 focus:ring-emerald-500 bg-emerald-50/30">
+                    <p class="text-[11px] text-slate-500 mt-1">
+                        Tentukan ruangan untuk operator ini. Pisahkan koma jika lebih dari 1 ruangan (misal: <code>C402, C403</code>) atau kosongkan untuk semua ruangan.
+                    </p>
                 </div>
 
                 <div class="flex gap-2 pt-3 border-t border-slate-100">
@@ -1243,7 +1277,106 @@
                         Batal
                     </button>
                     <button type="submit" id="saveAdminUserBtn" class="flex-1 py-2 px-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition shadow">
-                        Simpan Admin
+                        Simpan Akun
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: EDIT DATA PRESENTER -->
+    <div id="editParticipantModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 space-y-4 border border-slate-100 animate-in fade-in zoom-in duration-200 max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <div class="flex justify-between items-center pb-2 border-b border-slate-100">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center">
+                        <i data-lucide="edit-3" class="w-4 h-4"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-extrabold text-base text-slate-900">Edit Data Presenter</h3>
+                        <p class="text-xs text-slate-500">Perbarui profil atau informasi presentasi presenter</p>
+                    </div>
+                </div>
+                <button onclick="closeEditParticipantModal()" class="text-slate-400 hover:text-slate-600 p-1">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form id="editParticipantForm" class="space-y-4 text-left">
+                <input type="hidden" id="editPartId">
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">No. Identitas (NIM/NIP) *</label>
+                        <input type="text" id="editPartNim" required class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-slate-800 text-xs focus:ring-2 focus:ring-blue-500 font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Nama Lengkap Presenter *</label>
+                        <input type="text" id="editPartNama" required class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-slate-800 text-xs focus:ring-2 focus:ring-blue-500 font-bold">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Judul Presentasi</label>
+                    <textarea id="editPartJudul" rows="2" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-slate-800 text-xs focus:ring-2 focus:ring-blue-500"></textarea>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Ruangan Presentasi</label>
+                        <input type="text" id="editPartRuangan" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-slate-800 text-xs focus:ring-2 focus:ring-blue-500 font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">No. HP / WhatsApp</label>
+                        <input type="tel" id="editPartHp" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-slate-800 text-xs focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Institusi / Universitas</label>
+                        <input type="text" id="editPartInstitusi" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-slate-800 text-xs focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Profesi / Kategori</label>
+                        <select id="editPartPekerjaan" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-slate-800 text-xs focus:ring-2 focus:ring-blue-500 bg-white">
+                            <option value="Mahasiswa S1">Mahasiswa S1</option>
+                            <option value="Mahasiswa S2">Mahasiswa S2</option>
+                            <option value="Mahasiswa">Mahasiswa</option>
+                            <option value="Dosen">Dosen</option>
+                            <option value="Praktisi">Praktisi</option>
+                            <option value="Lainnya">Lainnya</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Tipe Kehadiran & Link YouTube -->
+                <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Metode / Tipe Kehadiran *</label>
+                        <select id="editPartTipe" onchange="handleEditPartTipeChange()" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-slate-800 text-xs focus:ring-2 focus:ring-blue-500 bg-white font-semibold">
+                            <option value="Offline">Offline (Hadir Langsung di Ruangan)</option>
+                            <option value="Online">Online (Video / Daring via YouTube)</option>
+                        </select>
+                    </div>
+
+                    <div id="editPartYoutubeWrapper" class="hidden">
+                        <label class="block text-xs font-bold uppercase tracking-wider text-red-700 mb-1 flex items-center gap-1">
+                            <i data-lucide="video" class="w-3.5 h-3.5 text-red-600"></i>
+                            <span>URL Lengkap Link Video YouTube</span>
+                        </label>
+                        <input type="url" id="editPartYoutube" placeholder="https://www.youtube.com/watch?v=..."
+                            class="w-full px-3.5 py-2 rounded-xl border border-red-300 text-slate-800 text-xs focus:ring-2 focus:ring-red-500 bg-white font-mono">
+                    </div>
+                </div>
+
+                <div class="flex gap-2 pt-3 border-t border-slate-100">
+                    <button type="button" onclick="closeEditParticipantModal()" class="flex-1 py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition">
+                        Batal
+                    </button>
+                    <button type="submit" id="saveEditPartBtn" class="flex-1 py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow flex items-center justify-center gap-1.5">
+                        <i data-lucide="save" class="w-3.5 h-3.5"></i>
+                        <span>Simpan Perubahan</span>
                     </button>
                 </div>
             </form>
@@ -1486,6 +1619,8 @@
             const colWaktuHeader = document.getElementById('colWaktuHeader');
             const exportCurrentBtn = document.getElementById('exportCurrentBtn');
             const exportBtnLabel = document.getElementById('exportBtnLabel');
+            const bestFilterWrapper = document.getElementById('bestPresenterFilterWrapper');
+            const bestFilterCb = document.getElementById('filterBestPresenter');
 
             if (subTab === 'pendaftar') {
                 tabPendaftarBtn.className = 'w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-left text-xs sm:text-sm font-bold transition-all bg-amber-50 text-amber-900 border border-amber-200 shadow-sm';
@@ -1495,6 +1630,9 @@
                 tableSubtitle.textContent = 'Menampilkan data presenter yang telah mendaftar namun belum melakukan absensi pemindaian QR Code.';
                 colWaktuHeader.textContent = 'Waktu Daftar';
                 
+                if (bestFilterWrapper) bestFilterWrapper.classList.add('hidden');
+                if (bestFilterCb) bestFilterCb.checked = false;
+
                 exportCurrentBtn.href = `${window.BASE_URL}/api/export-csv?status=pendaftar`;
                 exportBtnLabel.textContent = 'Export CSV Pendaftar';
             } else {
@@ -1505,6 +1643,8 @@
                 tableSubtitle.textContent = 'Menampilkan data presenter yang telah hadir melalui pemindaian QR Code.';
                 colWaktuHeader.textContent = 'Waktu Hadir';
                 
+                if (bestFilterWrapper) bestFilterWrapper.classList.remove('hidden');
+
                 exportCurrentBtn.href = `${window.BASE_URL}/api/export-csv?status=peserta`;
                 exportBtnLabel.textContent = 'Export CSV Presenter Hadir';
             }
@@ -1967,11 +2107,19 @@
             }
         }
 
-        async function loadParticipantsData() {
+        async function loadParticipantsData(isSilent = false) {
             const tableBody = document.getElementById('participantTableBody');
-            const search = document.getElementById('searchInput').value;
-            const job = document.getElementById('filterPekerjaan').value;
+            const searchInput = document.getElementById('searchInput');
+            const search = searchInput ? searchInput.value : '';
+            const job = document.getElementById('filterPekerjaan')?.value || 'Semua';
             const ruang = document.getElementById('filterRuangan')?.value || 'Semua';
+            const tipe = document.getElementById('filterTipe')?.value || 'Semua';
+            const isBestOnly = document.getElementById('filterBestPresenter')?.checked;
+
+            // Don't interrupt while user is actively typing in search
+            if (isSilent && searchInput && document.activeElement === searchInput && search.length > 0) {
+                return;
+            }
 
             const params = new URLSearchParams({
                 status: currentInfoSubTab,
@@ -1980,15 +2128,24 @@
                 ruangan: ruang
             });
 
-            tableBody.innerHTML = `
-                <tr>
-                    <td colspan="11" class="text-center py-10 text-slate-400">
-                        <i data-lucide="loader-2" class="w-6 h-6 animate-spin mx-auto mb-2 text-blue-600"></i>
-                        Memuat data presenter...
-                    </td>
-                </tr>
-            `;
-            lucide.createIcons();
+            if (tipe !== 'Semua') {
+                params.append('tipe_kehadiran', tipe);
+            }
+            if (currentInfoSubTab === 'peserta' && isBestOnly) {
+                params.append('best_presenter', '1');
+            }
+
+            if (!isSilent) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="12" class="text-center py-10 text-slate-400">
+                            <i data-lucide="loader-2" class="w-6 h-6 animate-spin mx-auto mb-2 text-blue-600"></i>
+                            Memuat data presenter...
+                        </td>
+                    </tr>
+                `;
+                lucide.createIcons();
+            }
 
             try {
                 const res = await fetch(`${window.BASE_URL}/api/participants?${params.toString()}`);
@@ -1997,10 +2154,11 @@
                 if (json.success && json.data) {
                     currentParticipantsList = json.data;
                     renderParticipantsTable();
-                } else {
+                    if (isSilent) updateStats();
+                } else if (!isSilent) {
                     tableBody.innerHTML = `
                         <tr>
-                            <td colspan="11" class="text-center py-10 text-rose-500 font-medium">
+                            <td colspan="12" class="text-center py-10 text-rose-500 font-medium">
                                 <i data-lucide="alert-circle" class="w-6 h-6 mx-auto mb-2 text-rose-500"></i>
                                 Gagal memuat data: ${json.message || 'Respons server tidak valid'}
                             </td>
@@ -2009,16 +2167,18 @@
                     lucide.createIcons();
                 }
             } catch (e) {
-                console.error(e);
-                tableBody.innerHTML = `
-                    <tr>
-                        <td colspan="11" class="text-center py-10 text-rose-500 font-medium">
-                            <i data-lucide="wifi-off" class="w-6 h-6 mx-auto mb-2 text-rose-500"></i>
-                            Gagal menghubungi server database. Periksa rute API proxy.
-                        </td>
-                    </tr>
-                `;
-                lucide.createIcons();
+                if (!isSilent) {
+                    console.error(e);
+                    tableBody.innerHTML = `
+                        <tr>
+                            <td colspan="12" class="text-center py-10 text-rose-500 font-medium">
+                                <i data-lucide="wifi-off" class="w-6 h-6 mx-auto mb-2 text-rose-500"></i>
+                                Gagal menghubungi server database. Periksa rute API proxy.
+                            </td>
+                        </tr>
+                    `;
+                    lucide.createIcons();
+                }
             }
         }
 
@@ -2055,7 +2215,7 @@
             if (data.length === 0) {
                 tableBody.innerHTML = `
                     <tr>
-                        <td colspan="11" class="text-center py-12 text-slate-400">
+                        <td colspan="12" class="text-center py-12 text-slate-400">
                             <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 text-slate-300"></i>
                             <p class="font-medium text-slate-600">Tidak ada data presenter</p>
                             <p class="text-[11px] text-slate-400 mt-0.5">Belum ada data yang cocok dengan kriteria pencarian.</p>
@@ -2071,19 +2231,60 @@
                     const toggleActionClass = currentInfoSubTab === 'pendaftar' ? 'bg-blue-100 hover:bg-blue-200 text-blue-700' : 'bg-amber-100 hover:bg-amber-200 text-amber-700';
 
                     const isChecked = selectedPartIds.has(p.id);
+                    const isPresented = Number(p.is_presented) === 1;
+                    const isBest = Number(p.is_best_presenter) === 1;
+
+                    // Row & text style for presented / best presenter
+                    let rowClass = "hover:bg-slate-50/80 transition";
+                    if (isBest) {
+                        rowClass = "bg-amber-50 hover:bg-amber-100/80 border-l-4 border-amber-500 text-amber-950 font-medium";
+                    } else if (isPresented) {
+                        rowClass = "bg-slate-100/80 text-slate-400 opacity-75";
+                    }
+                    if (isChecked) rowClass += " bg-blue-50/40";
+
                     const safeQr = escapeHtml(p.qr_code);
                     const safeNama = escapeHtml(p.nama_lengkap);
                     const safeNim = escapeHtml(p.nim_nip);
                     const safeJudul = escapeHtml(p.judul_presentasi || '-');
                     const safeRuang = escapeHtml(p.ruangan || '-');
+                    const safeTipe = p.tipe_kehadiran || 'Offline';
+                    const safeYoutube = p.link_youtube || '';
                     const safeHp = escapeHtml(p.no_hp || '-');
                     const rawHp = (p.no_hp || '').replace(/\D/g, '');
                     const waNumber = rawHp.startsWith('0') ? '62' + rawHp.slice(1) : rawHp;
                     const safeInstitusi = escapeHtml(p.institusi);
                     const safeTime = escapeHtml(timeDisplay);
 
+                    // Tipe Column HTML
+                    let tipeHtml = '';
+                    if (safeTipe === 'Online') {
+                        if (safeYoutube) {
+                            tipeHtml = `
+                                <a href="${escapeHtml(safeYoutube)}" target="_blank" rel="noopener noreferrer"
+                                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 transition" title="Buka Link YouTube (${escapeHtml(safeYoutube)})">
+                                    <i data-lucide="video" class="w-3 h-3 text-red-600"></i>
+                                    <span>Online</span>
+                                    <i data-lucide="external-link" class="w-2.5 h-2.5"></i>
+                                </a>
+                            `;
+                        } else {
+                            tipeHtml = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-bold text-red-600 bg-red-50 border border-red-200">Online</span>`;
+                        }
+                    } else {
+                        tipeHtml = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-semibold text-slate-600 bg-slate-100 border border-slate-200">Offline</span>`;
+                    }
+
+                    // Strikethrough for presented
+                    const nameClass = isBest 
+                        ? 'font-extrabold text-amber-900' 
+                        : (isPresented ? 'font-semibold text-slate-400 line-through' : 'font-bold text-slate-900');
+                    const judulClass = isPresented && !isBest 
+                        ? 'font-medium text-slate-400 line-through' 
+                        : 'font-medium text-slate-800';
+
                     html += `
-                        <tr class="hover:bg-slate-50/80 transition ${isChecked ? 'bg-blue-50/40' : ''}">
+                        <tr class="${rowClass}">
                             <td class="py-3 px-3 text-center">
                                 <input type="checkbox" class="part-checkbox w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer"
                                     value="${p.id}" ${isChecked ? 'checked' : ''} onchange="handlePartCheckboxChange(${p.id}, this.checked)">
@@ -2096,13 +2297,20 @@
                                 </button>
                             </td>
                             <td class="py-3 px-3 font-mono text-slate-800">${safeNim}</td>
-                            <td class="py-3 px-3 font-bold text-slate-900">${safeNama}</td>
+                            <td class="py-3 px-3">
+                                <div class="flex items-center gap-1.5 flex-wrap">
+                                    <span class="${nameClass}">${safeNama}</span>
+                                    ${isBest ? '<span class="text-amber-500 inline-flex items-center text-xs font-bold bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300" title="Best Presenter Ruangan">⭐ Best</span>' : ''}
+                                    ${isPresented && !isBest ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-slate-200 text-slate-600 font-normal no-underline">Sudah Presentasi</span>' : ''}
+                                </div>
+                            </td>
                             <td class="py-3 px-3 max-w-xs">
-                                <div class="font-medium text-slate-800 line-clamp-2" title="${safeJudul}">${safeJudul}</div>
+                                <div class="${judulClass} line-clamp-2" title="${safeJudul}">${safeJudul}</div>
                             </td>
                             <td class="py-3 px-3">
                                 <span class="font-mono font-bold text-[11px] bg-slate-100 px-2 py-0.5 rounded border border-slate-200 text-slate-700">${safeRuang}</span>
                             </td>
+                            <td class="py-3 px-2.5 text-center">${tipeHtml}</td>
                             <td class="py-3 px-3">
                                 ${p.no_hp ? `
                                     <a href="https://wa.me/${waNumber}" target="_blank" title="Hubungi via WhatsApp (${safeHp})"
@@ -2116,6 +2324,10 @@
                             <td class="py-3 px-3 text-slate-500 text-[11px] whitespace-nowrap">${safeTime}</td>
                             <td class="py-3 px-3 text-center">
                                 <div class="flex items-center justify-center gap-1">
+                                    <button onclick="openEditParticipantModal(${p.id})" title="Edit Data Presenter"
+                                         class="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition">
+                                        <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
+                                    </button>
                                     <button onclick="toggleParticipantStatus(${p.id}, '${encodeURIComponent(p.nama_lengkap)}', '${p.status}')" title="${toggleActionTitle}"
                                          class="p-1.5 rounded-lg ${toggleActionClass} transition">
                                         <i data-lucide="${toggleActionIcon}" class="w-3.5 h-3.5"></i>
@@ -2133,6 +2345,94 @@
             }
             updatePartBulkBar();
             lucide.createIcons();
+        }
+
+        // ======================= EDIT PARTICIPANT LOGIC =======================
+
+        function openEditParticipantModal(participantId) {
+            const p = currentParticipantsList.find(x => x.id === participantId);
+            if (!p) return;
+
+            document.getElementById('editPartId').value = p.id;
+            document.getElementById('editPartNim').value = p.nim_nip || '';
+            document.getElementById('editPartNama').value = p.nama_lengkap || '';
+            document.getElementById('editPartJudul').value = p.judul_presentasi || '';
+            document.getElementById('editPartRuangan').value = p.ruangan || '';
+            document.getElementById('editPartHp').value = p.no_hp || '';
+            document.getElementById('editPartInstitusi').value = p.institusi || '';
+            document.getElementById('editPartPekerjaan').value = p.pekerjaan || 'Mahasiswa S1';
+            
+            const tipe = p.tipe_kehadiran || 'Offline';
+            document.getElementById('editPartTipe').value = tipe;
+            document.getElementById('editPartYoutube').value = p.link_youtube || '';
+            
+            handleEditPartTipeChange();
+            document.getElementById('editParticipantModal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeEditParticipantModal() {
+            document.getElementById('editParticipantModal').classList.add('hidden');
+        }
+
+        function handleEditPartTipeChange() {
+            const tipe = document.getElementById('editPartTipe').value;
+            const ytWrapper = document.getElementById('editPartYoutubeWrapper');
+            if (tipe === 'Online') {
+                ytWrapper.classList.remove('hidden');
+            } else {
+                ytWrapper.classList.add('hidden');
+            }
+            lucide.createIcons();
+        }
+
+        const editPartForm = document.getElementById('editParticipantForm');
+        if (editPartForm) {
+            editPartForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const id = document.getElementById('editPartId').value;
+                const payload = {
+                    nim_nip: document.getElementById('editPartNim').value.trim(),
+                    nama_lengkap: document.getElementById('editPartNama').value.trim(),
+                    judul_presentasi: document.getElementById('editPartJudul').value.trim(),
+                    ruangan: document.getElementById('editPartRuangan').value.trim(),
+                    no_hp: document.getElementById('editPartHp').value.trim(),
+                    institusi: document.getElementById('editPartInstitusi').value.trim(),
+                    pekerjaan: document.getElementById('editPartPekerjaan').value,
+                    tipe_kehadiran: document.getElementById('editPartTipe').value,
+                    link_youtube: document.getElementById('editPartYoutube').value.trim()
+                };
+
+                try {
+                    const res = await fetch(`${window.BASE_URL}/api/participant/${id}/edit`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const json = await res.json();
+
+                    if (res.ok && json.success) {
+                        closeEditParticipantModal();
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Berhasil Diperbarui!',
+                            text: json.message,
+                            confirmButtonColor: '#2563eb'
+                        });
+                        loadParticipantsData();
+                        updateStats();
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal',
+                            text: json.message || 'Terjadi kesalahan.',
+                            confirmButtonColor: '#2563eb'
+                        });
+                    }
+                } catch (err) {
+                    console.error('Error updating participant:', err);
+                }
+            });
         }
 
         async function toggleParticipantStatus(id, encodedName, currentStatus) {
@@ -2742,15 +3042,21 @@
                     document.getElementById('adminUsersCount').textContent = json.data.length;
                     let html = '';
                     json.data.forEach((u, idx) => {
-                        const isSuper = u.role === 'superadmin';
-                        const roleBadge = isSuper
-                            ? `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">SUPER ADMIN</span>`
-                            : `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200">PETUGAS ADMIN</span>`;
+                        let roleBadge = '';
+                        if (u.role === 'superadmin') {
+                            roleBadge = `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">SUPER ADMIN</span>`;
+                        } else if (u.role === 'operator') {
+                            const roomTag = u.assigned_rooms ? ` (${escapeHtml(u.assigned_rooms)})` : ' (Semua)';
+                            roleBadge = `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">OPERATOR${roomTag}</span>`;
+                        } else {
+                            roleBadge = `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200">PETUGAS ADMIN</span>`;
+                        }
 
                         const safeNama = escapeHtml(u.nama);
                         const safeUsername = escapeHtml(u.username);
                         const safeCreated = escapeHtml(u.created_at || '-');
                         const safeLastLogin = escapeHtml(u.last_login || 'Belum Login');
+                        const safeAssignedRooms = escapeHtml(u.assigned_rooms || '');
 
                         html += `
                             <tr class="hover:bg-slate-50 transition">
@@ -2769,7 +3075,7 @@
                                             <i data-lucide="key" class="w-3.5 h-3.5"></i>
                                             <span>Atur Password</span>
                                         </button>
-                                        <button onclick="openEditAdminModal(${u.id}, '${encodeURIComponent(u.nama)}', '${encodeURIComponent(u.username)}', '${encodeURIComponent(u.role)}')"
+                                        <button onclick="openEditAdminModal(${u.id}, '${encodeURIComponent(u.nama)}', '${encodeURIComponent(u.username)}', '${encodeURIComponent(u.role)}', '${encodeURIComponent(u.assigned_rooms || '')}')"
                                             class="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition" title="Edit Profil">
                                             <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
                                         </button>
@@ -2841,25 +3147,42 @@
             });
         }
 
+        function handleModalRoleChange() {
+            const role = document.getElementById('modalAdminRole').value;
+            const roomsWrapper = document.getElementById('modalAssignedRoomsWrapper');
+            if (roomsWrapper) {
+                if (role === 'operator') {
+                    roomsWrapper.classList.remove('hidden');
+                } else {
+                    roomsWrapper.classList.add('hidden');
+                }
+            }
+            lucide.createIcons();
+        }
+
         function openAddAdminModal() {
-            document.getElementById('adminUserModalTitle').textContent = 'Tambah Admin Baru';
+            document.getElementById('adminUserModalTitle').textContent = 'Tambah Admin / Operator Baru';
             document.getElementById('modalAdminId').value = '';
             document.getElementById('modalAdminNama').value = '';
             document.getElementById('modalAdminUsername').value = '';
             document.getElementById('modalAdminPassword').value = '';
             document.getElementById('modalPassField').classList.remove('hidden');
             document.getElementById('modalAdminRole').value = 'admin';
+            document.getElementById('modalAdminAssignedRooms').value = '';
+            handleModalRoleChange();
             document.getElementById('adminUserModal').classList.remove('hidden');
             lucide.createIcons();
         }
 
-        function openEditAdminModal(id, encodedNama, username, role) {
-            document.getElementById('adminUserModalTitle').textContent = 'Edit Data Admin';
+        function openEditAdminModal(id, encodedNama, username, role, encodedAssignedRooms) {
+            document.getElementById('adminUserModalTitle').textContent = 'Edit Data Akun';
             document.getElementById('modalAdminId').value = id;
             document.getElementById('modalAdminNama').value = decodeURIComponent(encodedNama);
             document.getElementById('modalAdminUsername').value = username;
             document.getElementById('modalPassField').classList.add('hidden');
             document.getElementById('modalAdminRole').value = role;
+            document.getElementById('modalAdminAssignedRooms').value = encodedAssignedRooms ? decodeURIComponent(encodedAssignedRooms) : '';
+            handleModalRoleChange();
             document.getElementById('adminUserModal').classList.remove('hidden');
             lucide.createIcons();
         }
@@ -2876,11 +3199,12 @@
                 const nama = document.getElementById('modalAdminNama').value.trim();
                 const username = document.getElementById('modalAdminUsername').value.trim();
                 const role = document.getElementById('modalAdminRole').value;
+                const assigned_rooms = document.getElementById('modalAdminAssignedRooms')?.value.trim() || '';
                 const password = document.getElementById('modalAdminPassword').value.trim();
 
                 try {
                     let url = `${window.BASE_URL}/api/admin/users`;
-                    let payload = { nama, username, role };
+                    let payload = { nama, username, role, assigned_rooms };
 
                     if (id) {
                         url = `${window.BASE_URL}/api/admin/users/${id}/edit`;
@@ -3352,11 +3676,50 @@
             });
         }
 
+        // =========================================================================
+        // SMART POLLING (BACKGROUND SYNC TIAP 2.5 DETIK)
+        // =========================================================================
+        let adminAutoSyncInterval = null;
+
+        function startAdminAutoSync() {
+            if (adminAutoSyncInterval) clearInterval(adminAutoSyncInterval);
+            adminAutoSyncInterval = setInterval(() => {
+                // Jangan sync jika tab sedang diminimize / di background
+                if (document.hidden) return;
+
+                // Jangan sync jika modal edit atau modal form lain sedang terbuka
+                const isEditPartOpen = !document.getElementById('editParticipantModal')?.classList.contains('hidden');
+                const isQrModalOpen = !document.getElementById('qrModal')?.classList.contains('hidden');
+                const isImportOpen = !document.getElementById('importCsvModal')?.classList.contains('hidden');
+                const isAddAdminOpen = !document.getElementById('adminUserModal')?.classList.contains('hidden');
+                const isResetPassOpen = !document.getElementById('resetPassModal')?.classList.contains('hidden');
+
+                if (isEditPartOpen || isQrModalOpen || isImportOpen || isAddAdminOpen || isResetPassOpen) {
+                    return;
+                }
+
+                if (currentMainMenu === 'info') {
+                    loadParticipantsData(true);
+                } else if (currentMainMenu === 'scan' || currentMainMenu === 'settings') {
+                    updateStats();
+                }
+            }, 2500);
+        }
+
+        // Visibility listener: langsung sync begitu tab browser dibuka kembali
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                if (currentMainMenu === 'info') loadParticipantsData(true);
+                updateStats();
+            }
+        });
+
         window.addEventListener('DOMContentLoaded', () => {
             initCameraOptions();
             updateStats();
             loadDistinctRuangan();
             loadParticipantsData();
+            startAdminAutoSync();
             {% if is_superadmin %}
             loadAdminUsersData();
             {% endif %}

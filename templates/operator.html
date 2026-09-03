@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ event_settings.title_admin if event_settings.title_admin else ('Operator Ruangan - ' ~ event_settings.event_name) }}</title>
+    {% if event_settings.event_favicon %}
+    <link rel="icon" href="{{ event_settings.event_favicon }}">
+    {% else %}
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    {% endif %}
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'Fira Code', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #f8fafc;
+        }
+        
+        /* Marquee Animation for Presentation Titles */
+        .marquee-container {
+            width: 100%;
+            overflow: hidden;
+            white-space: nowrap;
+            position: relative;
+        }
+        .marquee-text {
+            display: inline-block;
+            white-space: nowrap;
+            transition: transform 0.2s ease;
+        }
+        .marquee-container:hover .marquee-text.is-overflow {
+            animation: marquee 8s linear infinite alternate;
+        }
+        @keyframes marquee {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(calc(-100% + 220px)); }
+        }
+
+        /* Pulsing Alert for Timer Expired */
+        @keyframes pulse-red {
+            0%, 100% { background-color: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.8); }
+            50% { background-color: rgba(239, 68, 68, 0.4); border-color: rgba(220, 38, 38, 1); }
+        }
+        .timer-alarm-active {
+            animation: pulse-red 0.5s infinite ease-in-out;
+        }
+    </style>
+    <script>
+        {% if request.script_root %}
+        window.BASE_URL = "{{ request.script_root }}";
+        {% else %}
+        window.BASE_URL = window.location.pathname.includes('presenter') ? '/absenpresenter' : '';
+        {% endif %}
+    </script>
+</head>
+<body class="min-h-screen flex flex-col text-slate-800 antialiased bg-slate-50 select-none">
+    <!-- Top Header -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Brand Identity -->
+                <div class="flex items-center gap-3">
+                    {% if event_settings.event_logo %}
+                        <img src="{{ event_settings.event_logo }}" alt="Logo" class="w-10 h-10 rounded-xl object-contain bg-white p-1 border border-slate-200 shadow-xs">
+                    {% else %}
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-600 flex items-center justify-center text-white shadow-md shadow-emerald-500/20">
+                            <i data-lucide="monitor" class="w-5 h-5"></i>
+                        </div>
+                    {% endif %}
+                    <div>
+                        <div class="font-extrabold text-base sm:text-lg text-slate-900 tracking-tight leading-tight">
+                            {{ event_settings.event_name }}
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-bold text-emerald-700 uppercase tracking-wider">Console Operator</span>
+                            <span class="text-[11px] font-mono font-bold bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded-md border border-emerald-300 inline-flex items-center gap-1">
+                                <i data-lucide="door-open" class="w-3 h-3 text-emerald-700"></i>
+                                <span>Ruangan: {{ assigned_rooms if assigned_rooms else 'Semua' }}</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Header Actions: Timer Setting, Operator Info & Logout -->
+                <div class="flex items-center gap-2 sm:gap-4">
+                    <!-- Default Timer Setting -->
+                    <div class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 rounded-xl border border-slate-200 text-xs" title="Durasi Timer Standar untuk Setiap Presenter di Ruangan Ini">
+                        <i data-lucide="timer" class="w-4 h-4 text-blue-600"></i>
+                        <span class="font-semibold text-slate-700 hidden sm:inline">Timer Default:</span>
+                        <input type="number" id="defaultTimerInput" min="1" max="120" value="10"
+                            class="w-14 px-2 py-1 text-center font-bold font-mono text-xs rounded-lg border border-slate-300 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                            onchange="saveDefaultTimerSetting(this.value)">
+                        <span class="text-slate-600 font-medium">Mnt</span>
+                    </div>
+
+                    <!-- Operator Badge -->
+                    <div class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                        <div class="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold">
+                            {{ admin_name[0] | upper }}
+                        </div>
+                        <div class="text-left">
+                            <div class="font-bold text-slate-800 leading-none">{{ admin_name }}</div>
+                            <div class="text-[10px] text-slate-400 font-mono">@{{ admin_username }}</div>
+                        </div>
+                    </div>
+
+                    <!-- Logout Button -->
+                    <button onclick="handleLogout()" type="button" class="px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition flex items-center gap-1.5">
+                        <i data-lucide="log-out" class="w-4 h-4"></i>
+                        <span class="hidden sm:inline">Logout</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5">
+        <!-- Control Bar & Stats -->
+        <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+                <h1 class="text-lg sm:text-xl font-extrabold text-slate-900 flex items-center gap-2">
+                    <i data-lucide="presentation" class="w-5 h-5 text-emerald-600"></i>
+                    <span>Daftar Presenter Ruangan <span class="text-emerald-700 font-mono">{{ assigned_rooms if assigned_rooms else 'Semua' }}</span></span>
+                </h1>
+                <p class="text-xs text-slate-500 mt-0.5">
+                    Kelola jalannya presentasi peserta, kontrol timer countdown, tandai status selesai presentasi dan pilih <strong>Best Presenter</strong> ruangan.
+                </p>
+            </div>
+
+            <!-- Search & Refresh Controls -->
+            <div class="flex items-center gap-2">
+                <div class="relative w-48 sm:w-60">
+                    <input type="text" id="opSearchInput" placeholder="Cari presenter..."
+                        oninput="filterPresenterTable()"
+                        class="w-full pl-8 pr-3 py-2 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white">
+                    <div class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400">
+                        <i data-lucide="search" class="w-3.5 h-3.5"></i>
+                    </div>
+                </div>
+
+                <button onclick="loadOperatorData()" class="px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold transition flex items-center gap-1.5" title="Muat Ulang Data">
+                    <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
+                    <span class="hidden sm:inline">Refresh</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Presenters Table Card -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+            <div class="p-3.5 bg-slate-50/80 border-b border-slate-200 flex items-center justify-between text-xs">
+                <div class="font-bold text-slate-700 flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                    <span>Total Presenter: <strong id="opTotalCount" class="text-emerald-700 font-mono font-bold">0</strong> Peserta</span>
+                </div>
+                <div class="flex items-center gap-3 text-[11px] text-slate-500">
+                    <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-slate-300"></span> Abu-abu: Sudah Presentasi</span>
+                    <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span> Kuning: Best Presenter ⭐</span>
+                </div>
+            </div>
+
+            <!-- Table Container (No horizontal page scroll, fixed table layout with marquee) -->
+            <div class="w-full overflow-hidden">
+                <table class="w-full text-left text-xs table-fixed border-collapse">
+                    <thead class="bg-slate-100/90 text-slate-700 font-bold uppercase tracking-wider border-b border-slate-200">
+                        <tr>
+                            <th class="py-3 px-2 w-10 text-center">No</th>
+                            <th class="py-3 px-3 w-28">No. Identitas</th>
+                            <th class="py-3 px-3 w-44">Nama Presenter</th>
+                            <th class="py-3 px-3 w-72">Judul Presentasi</th>
+                            <th class="py-3 px-2.5 w-24 text-center">Tipe</th>
+                            <th class="py-3 px-3 w-32">WhatsApp</th>
+                            <th class="py-3 px-2.5 w-28 text-center">Kehadiran</th>
+                            <th class="py-3 px-3 w-64 text-center bg-slate-200/50">Aksi Presentasi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="operatorTableBody" class="divide-y divide-slate-100">
+                        <tr>
+                            <td colspan="8" class="text-center py-12 text-slate-400">
+                                <i data-lucide="loader-2" class="w-8 h-8 mx-auto mb-2 text-emerald-500 animate-spin"></i>
+                                <p class="font-medium text-slate-600">Memuat data presenter ruangan...</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- ======================= PRESENTATION TIMER MODAL ======================= -->
+    <div id="timerModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md hidden flex items-center justify-center p-4 transition-all">
+        <div id="timerCard" class="bg-white rounded-3xl shadow-2xl max-w-2xl w-full border border-slate-200 overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+            <!-- Modal Header with Presenter Info -->
+            <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-5 sm:p-6 relative">
+                <button type="button" onclick="closeTimerModal()" class="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition" title="Tutup Timer">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+                <div class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[11px] font-bold uppercase tracking-wider mb-2 border border-emerald-500/30">
+                    <i data-lucide="presentation" class="w-3.5 h-3.5"></i>
+                    Sesi Presentasi Berlangsung
+                </div>
+                <h3 class="text-lg sm:text-xl font-black leading-snug" id="timerPresenterName">-</h3>
+                <p class="text-xs text-slate-300 font-mono mt-0.5" id="timerPresenterMeta">-</p>
+                <div class="mt-2 text-xs text-emerald-200 font-medium bg-white/5 p-2.5 rounded-xl border border-white/10 line-clamp-2" id="timerPresenterTitle">
+                    -
+                </div>
+            </div>
+
+            <!-- Big Countdown Display Body -->
+            <div class="p-6 sm:p-8 text-center space-y-6 bg-slate-50/50">
+                <!-- Countdown Display -->
+                <div class="relative inline-block mx-auto">
+                    <div id="timerBox" class="w-64 sm:w-80 py-6 px-4 bg-slate-900 text-emerald-400 rounded-3xl border-4 border-slate-800 shadow-2xl transition-all flex flex-col items-center justify-center">
+                        <div class="font-mono text-6xl sm:text-7xl font-black tracking-wider leading-none select-all" id="timerDisplay">
+                            10:00
+                        </div>
+                        <div class="text-[11px] font-bold uppercase tracking-widest text-slate-400 mt-2" id="timerStatusLabel">
+                            Siap Dimulai
+                        </div>
+                    </div>
+
+                    <!-- Expired Banner -->
+                    <div id="timerExpiredBanner" class="hidden mt-3 py-1.5 px-4 rounded-xl bg-rose-600 text-white text-xs font-black uppercase tracking-wider animate-bounce shadow-md">
+                        ⚠️ Waktu Presentasi Habis!
+                    </div>
+                </div>
+
+                <!-- Timer Controls Bar -->
+                <div class="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+                    <button type="button" id="timerPlayPauseBtn" onclick="toggleTimerPlayPause()"
+                        class="px-6 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm shadow-lg shadow-emerald-600/30 hover:shadow-emerald-600/50 transition flex items-center gap-2">
+                        <i data-lucide="play" id="timerPlayIcon" class="w-5 h-5 fill-current"></i>
+                        <span id="timerPlayBtnText">Mulai Timer</span>
+                    </button>
+
+                    <button type="button" onclick="resetTimer()"
+                        class="px-4 py-3 rounded-2xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs transition flex items-center gap-1.5">
+                        <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                        <span>Reset</span>
+                    </button>
+
+                    <button type="button" onclick="adjustTimer(60)"
+                        class="px-3 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs border border-slate-300 transition" title="Tambah 1 Menit">
+                        +1 Mnt
+                    </button>
+
+                    <button type="button" onclick="adjustTimer(-60)"
+                        class="px-3 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs border border-slate-300 transition" title="Kurangi 1 Menit">
+                        -1 Mnt
+                    </button>
+                </div>
+
+                <!-- Mark as Presented and Close -->
+                <div class="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3 border-t border-slate-200">
+                    <button type="button" onclick="finishAndMarkPresented()"
+                        class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md transition flex items-center justify-center gap-1.5">
+                        <i data-lucide="check-check" class="w-4 h-4"></i>
+                        <span>Selesai & Tandai Sudah Presentasi</span>
+                    </button>
+                    <button type="button" onclick="closeTimerModal()"
+                        class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold text-xs transition">
+                        Tutup
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- QR Code Preview Modal -->
+    <div id="opQrModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-6 max-w-sm w-full text-center space-y-4 border border-slate-200 shadow-2xl">
+            <h3 class="font-bold text-sm text-slate-800" id="opQrModalTitle">QR Code Presenter</h3>
+            <img id="opQrModalImg" src="" alt="QR" class="w-44 h-44 object-contain mx-auto">
+            <div class="font-mono text-base font-bold text-slate-900" id="opQrModalCode">-</div>
+            <button onclick="document.getElementById('opQrModal').classList.add('hidden')" class="w-full py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition">
+                Tutup
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let allPresenters = [];
+        let assignedRooms = "{{ assigned_rooms }}";
+        let activeTimerPresenterId = null;
+        let timerDurationSeconds = 600; // default 10 minutes
+        let timerRemainingSeconds = 600;
+        let timerInterval = null;
+        let isTimerRunning = false;
+        let alarmAudioContext = null;
+
+        // Inisialisasi Default Timer dari LocalStorage jika ada
+        const savedTimer = localStorage.getItem('operator_default_timer_mins');
+        if (savedTimer && !isNaN(savedTimer) && Number(savedTimer) > 0) {
+            timerDurationSeconds = Number(savedTimer) * 60;
+            timerRemainingSeconds = timerDurationSeconds;
+            document.getElementById('defaultTimerInput').value = savedTimer;
+        }
+
+        function saveDefaultTimerSetting(mins) {
+            const val = parseInt(mins) || 10;
+            const validVal = Math.max(1, Math.min(120, val));
+            document.getElementById('defaultTimerInput').value = validVal;
+            localStorage.setItem('operator_default_timer_mins', validVal);
+            if (!isTimerRunning) {
+                timerDurationSeconds = validVal * 60;
+                timerRemainingSeconds = timerDurationSeconds;
+                updateTimerDisplay();
+            }
+        }
+
+        // Web Audio API Alarm (2-Second pleasant beeping alarm)
+        function playAlarmSound() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                alarmAudioContext = ctx;
+                
+                const now = ctx.currentTime;
+                // Beep 1
+                playTone(ctx, 880, now, 0.35);
+                // Beep 2
+                playTone(ctx, 880, now + 0.5, 0.35);
+                // Beep 3
+                playTone(ctx, 1046.5, now + 1.0, 0.35);
+                // Beep 4 (Longer finale)
+                playTone(ctx, 1318.5, now + 1.5, 0.5);
+                
+                setTimeout(() => {
+                    if (ctx && ctx.state !== 'closed') {
+                        ctx.close();
+                    }
+                }, 2200);
+            } catch (err) {
+                console.warn('Web Audio API not supported or blocked:', err);
+            }
+        }
+
+        function playTone(ctx, freq, startTime, duration) {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, startTime);
+            gain.gain.setValueAtTime(0.2, startTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(startTime);
+            osc.stop(startTime + duration);
+        }
+
+        // Load Data Presenters for this Operator's assigned room(s)
+        async function loadOperatorData(isSilent = false) {
+            const tbody = document.getElementById('operatorTableBody');
+            const searchInput = document.getElementById('opSearchInput');
+            const searchVal = searchInput ? searchInput.value.trim() : '';
+
+            // Don't interrupt if operator is typing in search
+            if (isSilent && searchInput && document.activeElement === searchInput && searchVal.length > 0) {
+                return;
+            }
+
+            if (!isSilent) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="text-center py-12 text-slate-400">
+                            <i data-lucide="loader-2" class="w-8 h-8 mx-auto mb-2 text-emerald-500 animate-spin"></i>
+                            <p class="font-medium text-slate-600">Memuat data presenter ruangan...</p>
+                        </td>
+                    </tr>
+                `;
+                lucide.createIcons();
+            }
+
+            try {
+                const url = assignedRooms && assignedRooms.trim() !== '' 
+                    ? `${window.BASE_URL}/api/participants?ruangan=${encodeURIComponent(assignedRooms)}` 
+                    : `${window.BASE_URL}/api/participants`;
+
+                const res = await fetch(url);
+                const data = await res.json();
+
+                if (res.ok && data.success) {
+                    allPresenters = data.data || [];
+                    document.getElementById('opTotalCount').textContent = allPresenters.length;
+                    filterPresenterTable();
+                } else if (!isSilent) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="8" class="text-center py-8 text-rose-500 font-bold">
+                                Gagal memuat data: ${data.message || 'Terjadi kesalahan'}
+                            </td>
+                        </tr>
+                    `;
+                    lucide.createIcons();
+                }
+            } catch (err) {
+                if (!isSilent) {
+                    console.error(err);
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="8" class="text-center py-8 text-rose-500 font-bold">
+                                Tidak dapat menghubungi server.
+                            </td>
+                        </tr>
+                    `;
+                    lucide.createIcons();
+                }
+            }
+        }
+
+        function filterPresenterTable() {
+            const query = (document.getElementById('opSearchInput')?.value || '').trim().toLowerCase();
+            if (!query) {
+                renderOperatorTable(allPresenters);
+                return;
+            }
+            const filtered = allPresenters.filter(p => {
+                return (p.nama_lengkap && p.nama_lengkap.toLowerCase().includes(query)) ||
+                       (p.nim_nip && p.nim_nip.toLowerCase().includes(query)) ||
+                       (p.judul_presentasi && p.judul_presentasi.toLowerCase().includes(query)) ||
+                       (p.qr_code && p.qr_code.toLowerCase().includes(query));
+            });
+            renderOperatorTable(filtered);
+        }
+
+        function renderOperatorTable(list) {
+            const tbody = document.getElementById('operatorTableBody');
+            if (!tbody) return;
+
+            if (list.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="text-center py-12 text-slate-400">
+                            <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 text-slate-300"></i>
+                            <p class="font-medium text-slate-600">Tidak ada presenter di ruangan ini</p>
+                        </td>
+                    </tr>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            let html = '';
+            list.forEach((p, idx) => {
+                const isPresented = Number(p.is_presented) === 1;
+                const isBest = Number(p.is_best_presenter) === 1;
+
+                // Color Scheme based on status:
+                // Best Presenter: Light Yellow
+                // Presented: Gray / Inactive with strikethrough
+                // Normal: Default white
+                let rowBgClass = "hover:bg-slate-50 transition";
+                if (isBest) {
+                    rowBgClass = "bg-amber-50 hover:bg-amber-100/80 border-l-4 border-amber-500 text-amber-950";
+                } else if (isPresented) {
+                    rowBgClass = "bg-slate-100/80 text-slate-400 opacity-75";
+                }
+
+                const safeQr = escapeHtml(p.qr_code);
+                const safeNama = escapeHtml(p.nama_lengkap);
+                const safeNim = escapeHtml(p.nim_nip);
+                const safeJudul = escapeHtml(p.judul_presentasi || '-');
+                const safeHp = escapeHtml(p.no_hp || '-');
+                const rawHp = (p.no_hp || '').replace(/\D/g, '');
+                const waNumber = rawHp.startsWith('0') ? '62' + rawHp.slice(1) : rawHp;
+                const safeTipe = p.tipe_kehadiran || 'Offline';
+                const safeYoutube = p.link_youtube || '';
+
+                // Title Marquee Container (No horizontal scroll)
+                const isLongTitle = (p.judul_presentasi || '').length > 35;
+
+                // Strikethrough classes for presented
+                const nameClass = isBest 
+                    ? 'font-extrabold text-amber-900' 
+                    : (isPresented ? 'font-semibold text-slate-400 line-through' : 'font-bold text-slate-900');
+                const judulClass = isPresented && !isBest 
+                    ? 'font-medium text-slate-400 line-through' 
+                    : 'font-medium text-slate-800';
+
+                // Tipe Column
+                let tipeHtml = '';
+                if (safeTipe === 'Online') {
+                    if (safeYoutube) {
+                        tipeHtml = `
+                            <a href="${escapeHtml(safeYoutube)}" target="_blank" rel="noopener noreferrer"
+                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 transition" title="Buka Link YouTube (${escapeHtml(safeYoutube)})">
+                                <i data-lucide="video" class="w-3 h-3 text-red-600"></i>
+                                <span>Online</span>
+                                <i data-lucide="external-link" class="w-2.5 h-2.5"></i>
+                            </a>
+                        `;
+                    } else {
+                        tipeHtml = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-bold text-red-600 bg-red-50 border border-red-200">Online</span>`;
+                    }
+                } else {
+                    tipeHtml = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-semibold text-slate-600 bg-slate-100 border border-slate-200">Offline</span>`;
+                }
+
+                // Kehadiran Status
+                const statusHtml = p.status === 'peserta'
+                    ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 inline-flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i> Hadir</span>`
+                    : `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 inline-flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> Pendaftar</span>`;
+
+                html += `
+                    <tr class="${rowBgClass}" id="row-presenter-${p.id}">
+                        <td class="py-3 px-2 text-center text-slate-400 font-mono">${idx + 1}</td>
+                        <td class="py-3 px-3 font-mono font-semibold">${safeNim}</td>
+                        <td class="py-3 px-3">
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <span class="${nameClass}">${safeNama}</span>
+                                ${isBest ? '<span class="text-amber-500 inline-flex items-center text-[10px] font-bold bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300" title="Best Presenter Ruangan">⭐ Best</span>' : ''}
+                                ${isPresented && !isBest ? '<span class="px-1.5 py-0.2 rounded text-[9px] bg-slate-200 text-slate-600 font-normal no-underline">Selesai</span>' : ''}
+                            </div>
+                        </td>
+                        <td class="py-3 px-3">
+                            <div class="marquee-container" title="${safeJudul}">
+                                <span class="marquee-text ${isLongTitle ? 'is-overflow' : ''} ${judulClass}">
+                                    ${safeJudul}
+                                </span>
+                            </div>
+                        </td>
+                        <td class="py-3 px-2.5 text-center">${tipeHtml}</td>
+                        <td class="py-3 px-3">
+                            ${p.no_hp ? `
+                                <a href="https://wa.me/${waNumber}" target="_blank" class="font-mono text-blue-700 hover:underline inline-flex items-center gap-1 font-medium bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                                    <i data-lucide="phone" class="w-3 h-3 text-blue-600"></i>
+                                    <span>${safeHp}</span>
+                                </a>
+                            ` : `<span class="text-slate-400 font-mono">-</span>`}
+                        </td>
+                        <td class="py-3 px-2.5 text-center">${statusHtml}</td>
+                        <td class="py-3 px-3 bg-slate-50/50">
+                            <div class="flex items-center justify-center gap-2">
+                                <!-- Mulai Presentasi Button -->
+                                <button type="button" onclick="openTimerModal(${p.id})"
+                                    class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] transition flex items-center gap-1 shadow-xs" title="Mulai Timer Presentasi">
+                                    <i data-lucide="play" class="w-3 h-3 fill-current"></i>
+                                    <span>Timer</span>
+                                </button>
+
+                                <!-- Ceklis Sudah Presentasi -->
+                                <label class="inline-flex items-center gap-1 text-[11px] font-bold text-slate-700 cursor-pointer select-none px-2 py-1 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 transition shadow-2xs" title="Tandai Sudah Selesai Presentasi">
+                                    <input type="checkbox" ${isPresented ? 'checked' : ''}
+                                        onchange="togglePresentedStatus(${p.id}, this)"
+                                        class="w-3.5 h-3.5 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer">
+                                    <span class="${isPresented ? 'text-blue-700' : 'text-slate-600'}">Selesai</span>
+                                </label>
+
+                                <!-- Ceklis Best Presenter -->
+                                <label class="inline-flex items-center gap-1 text-[11px] font-bold cursor-pointer select-none px-2 py-1 rounded-lg border transition shadow-2xs ${isPresented ? 'bg-amber-50 border-amber-300 text-amber-900 hover:bg-amber-100' : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed opacity-60'}" title="${isPresented ? 'Tandai sebagai Best Presenter Ruangan' : 'Harus selesai presentasi terlebih dahulu'}">
+                                    <input type="checkbox" ${isBest ? 'checked' : ''} ${!isPresented ? 'disabled' : ''}
+                                        onchange="toggleBestPresenterStatus(${p.id}, this)"
+                                        class="w-3.5 h-3.5 rounded text-amber-500 focus:ring-amber-400 border-amber-300 cursor-pointer disabled:cursor-not-allowed">
+                                    <span class="${isBest ? 'text-amber-800 font-extrabold' : ''}">Best ⭐</span>
+                                </label>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = html;
+            lucide.createIcons();
+        }
+
+        // ======================= REALTIME ACTIONS =======================
+
+        async function togglePresentedStatus(id, checkbox) {
+            try {
+                const res = await fetch(`${window.BASE_URL}/api/operator/toggle-presented/${id}`, { method: 'POST' });
+                const json = await res.json();
+                if (json.success) {
+                    // Update list local data
+                    const idx = allPresenters.findIndex(x => x.id === id);
+                    if (idx !== -1) {
+                        allPresenters[idx] = json.data;
+                    }
+                    renderOperatorTable(allPresenters);
+                } else {
+                    checkbox.checked = !checkbox.checked;
+                    Swal.fire({ icon: 'error', title: 'Gagal', text: json.message || 'Terjadi kesalahan' });
+                }
+            } catch (err) {
+                console.error(err);
+                checkbox.checked = !checkbox.checked;
+            }
+        }
+
+        async function toggleBestPresenterStatus(id, checkbox) {
+            try {
+                const res = await fetch(`${window.BASE_URL}/api/operator/toggle-best-presenter/${id}`, { method: 'POST' });
+                const json = await res.json();
+                if (json.success) {
+                    if (json.is_best_presenter === 1) {
+                        confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
+                    }
+                    // Refresh data to reflect single best presenter per room
+                    loadOperatorData();
+                } else {
+                    checkbox.checked = !checkbox.checked;
+                    Swal.fire({ icon: 'warning', title: 'Pemberitahuan', text: json.message || 'Terjadi kesalahan' });
+                }
+            } catch (err) {
+                console.error(err);
+                checkbox.checked = !checkbox.checked;
+            }
+        }
+
+        // ======================= TIMER LOGIC =======================
+
+        function openTimerModal(presenterId) {
+            const p = allPresenters.find(x => x.id === presenterId);
+            if (!p) return;
+
+            activeTimerPresenterId = presenterId;
+            document.getElementById('timerPresenterName').textContent = p.nama_lengkap;
+            document.getElementById('timerPresenterMeta').textContent = `NIM/NIP: ${p.nim_nip} • Ruangan: ${p.ruangan || '-'} • Institusi: ${p.institusi}`;
+            document.getElementById('timerPresenterTitle').textContent = `Judul: ${p.judul_presentasi || '-'}`;
+
+            // Reset Timer to configured default
+            pauseTimer();
+            const defaultMins = parseInt(document.getElementById('defaultTimerInput').value) || 10;
+            timerDurationSeconds = defaultMins * 60;
+            timerRemainingSeconds = timerDurationSeconds;
+            
+            document.getElementById('timerExpiredBanner').classList.add('hidden');
+            document.getElementById('timerBox').classList.remove('timer-alarm-active');
+            updateTimerDisplay();
+
+            document.getElementById('timerModal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeTimerModal() {
+            pauseTimer();
+            document.getElementById('timerModal').classList.add('hidden');
+            document.getElementById('timerBox').classList.remove('timer-alarm-active');
+        }
+
+        function toggleTimerPlayPause() {
+            if (isTimerRunning) {
+                pauseTimer();
+            } else {
+                startTimer();
+            }
+        }
+
+        function startTimer() {
+            if (timerRemainingSeconds <= 0) return;
+            isTimerRunning = true;
+            document.getElementById('timerPlayBtnText').textContent = 'Jeda Timer';
+            document.getElementById('timerPlayIcon').setAttribute('data-lucide', 'pause');
+            document.getElementById('timerStatusLabel').textContent = 'Sedang Berjalan';
+            lucide.createIcons();
+
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if (timerRemainingSeconds > 0) {
+                    timerRemainingSeconds--;
+                    updateTimerDisplay();
+
+                    if (timerRemainingSeconds === 0) {
+                        // Timer Expired!
+                        pauseTimer();
+                        document.getElementById('timerStatusLabel').textContent = 'Waktu Habis!';
+                        document.getElementById('timerExpiredBanner').classList.remove('hidden');
+                        document.getElementById('timerBox').classList.add('timer-alarm-active');
+                        playAlarmSound();
+                    }
+                }
+            }, 1000);
+        }
+
+        function pauseTimer() {
+            isTimerRunning = false;
+            clearInterval(timerInterval);
+            document.getElementById('timerPlayBtnText').textContent = 'Lanjutkan';
+            document.getElementById('timerPlayIcon').setAttribute('data-lucide', 'play');
+            if (timerRemainingSeconds > 0) {
+                document.getElementById('timerStatusLabel').textContent = 'Dijeda';
+            }
+            lucide.createIcons();
+        }
+
+        function resetTimer() {
+            pauseTimer();
+            const defaultMins = parseInt(document.getElementById('defaultTimerInput').value) || 10;
+            timerRemainingSeconds = defaultMins * 60;
+            document.getElementById('timerExpiredBanner').classList.add('hidden');
+            document.getElementById('timerBox').classList.remove('timer-alarm-active');
+            document.getElementById('timerStatusLabel').textContent = 'Siap Dimulai';
+            updateTimerDisplay();
+        }
+
+        function adjustTimer(deltaSeconds) {
+            timerRemainingSeconds = Math.max(0, timerRemainingSeconds + deltaSeconds);
+            if (timerRemainingSeconds > 0) {
+                document.getElementById('timerExpiredBanner').classList.add('hidden');
+                document.getElementById('timerBox').classList.remove('timer-alarm-active');
+            }
+            updateTimerDisplay();
+        }
+
+        function updateTimerDisplay() {
+            const mins = Math.floor(timerRemainingSeconds / 60);
+            const secs = timerRemainingSeconds % 60;
+            const formatted = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+            document.getElementById('timerDisplay').textContent = formatted;
+        }
+
+        async function finishAndMarkPresented() {
+            if (!activeTimerPresenterId) {
+                closeTimerModal();
+                return;
+            }
+
+            try {
+                // Ensure marked as presented
+                const res = await fetch(`${window.BASE_URL}/api/operator/toggle-presented/${activeTimerPresenterId}?set=1`, { method: 'POST' });
+                const json = await res.json();
+                if (json.success) {
+                    closeTimerModal();
+                    loadOperatorData();
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Selesai Presentasi',
+                        text: 'Presenter telah berhasil ditandai selesai presentasi.',
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                } else {
+                    closeTimerModal();
+                }
+            } catch (e) {
+                closeTimerModal();
+            }
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return text.toString().replace(/[&<>"']/g, m => map[m]);
+        }
+
+        async function handleLogout() {
+            await fetch(`${window.BASE_URL}/api/logout`, { method: 'POST' });
+            window.location.href = `${window.BASE_URL}/admin`;
+        }
+
+        // =========================================================================
+        // SMART POLLING (BACKGROUND SYNC TIAP 3 DETIK)
+        // =========================================================================
+        let opAutoSyncInterval = null;
+
+        function startOperatorAutoSync() {
+            if (opAutoSyncInterval) clearInterval(opAutoSyncInterval);
+            opAutoSyncInterval = setInterval(() => {
+                if (document.hidden) return;
+                const isTimerOpen = !document.getElementById('timerModal')?.classList.contains('hidden');
+                const isQrOpen = !document.getElementById('opQrModal')?.classList.contains('hidden');
+                if (isTimerOpen || isQrOpen) return;
+
+                loadOperatorData(true);
+            }, 3000);
+        }
+
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) loadOperatorData(true);
+        });
+
+        // Initial Load
+        loadOperatorData();
+        startOperatorAutoSync();
+    </script>
+</body>
+</html>

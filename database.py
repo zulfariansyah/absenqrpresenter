@@ -41,6 +41,11 @@ def init_db():
             status TEXT NOT NULL DEFAULT 'pendaftar',
             created_at TEXT NOT NULL,
             attended_at TEXT,
+            tipe_kehadiran TEXT DEFAULT 'Offline',
+            link_youtube TEXT DEFAULT '',
+            is_presented INTEGER DEFAULT 0,
+            presented_at TEXT,
+            is_best_presenter INTEGER DEFAULT 0,
             FOREIGN KEY (presentation_id) REFERENCES presentations(id) ON DELETE SET NULL
         )
     """)
@@ -56,6 +61,17 @@ def init_db():
         cursor.execute("ALTER TABLE participants ADD COLUMN judul_presentasi TEXT DEFAULT ''")
     if 'ruangan' not in columns:
         cursor.execute("ALTER TABLE participants ADD COLUMN ruangan TEXT DEFAULT ''")
+    if 'tipe_kehadiran' not in columns:
+        cursor.execute("ALTER TABLE participants ADD COLUMN tipe_kehadiran TEXT DEFAULT 'Offline'")
+    if 'link_youtube' not in columns:
+        cursor.execute("ALTER TABLE participants ADD COLUMN link_youtube TEXT DEFAULT ''")
+    if 'is_presented' not in columns:
+        cursor.execute("ALTER TABLE participants ADD COLUMN is_presented INTEGER DEFAULT 0")
+    if 'presented_at' not in columns:
+        cursor.execute("ALTER TABLE participants ADD COLUMN presented_at TEXT DEFAULT NULL")
+    if 'is_best_presenter' not in columns:
+        cursor.execute("ALTER TABLE participants ADD COLUMN is_best_presenter INTEGER DEFAULT 0")
+
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY,
@@ -69,10 +85,18 @@ def init_db():
             password_hash TEXT NOT NULL,
             nama TEXT NOT NULL,
             role TEXT NOT NULL DEFAULT 'admin',
+            assigned_rooms TEXT DEFAULT '',
             created_at TEXT NOT NULL,
             last_login TEXT
         )
     """)
+    
+    # Migrasi otomatis jika kolom assigned_rooms belum ada pada admins
+    cursor.execute("PRAGMA table_info(admins)")
+    admin_columns = [col['name'] for col in cursor.fetchall()]
+    if 'assigned_rooms' not in admin_columns:
+        cursor.execute("ALTER TABLE admins ADD COLUMN assigned_rooms TEXT DEFAULT ''")
+
     # Set default event settings if not exist
     cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('event_name', 'Seminar & Konferensi Presenter 2026')")
     cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('event_logo', '')")
@@ -81,29 +105,47 @@ def init_db():
     cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('title_register', '')")
     cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('title_admin', '')")
     
-    # Inisialisasi 5 User Admin Bawaan
+    # Inisialisasi User Admin & Operator Bawaan
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     default_hash = generate_password_hash('admin123', method='pbkdf2:sha256')
     
     default_admins = [
-        ('admin', default_hash, 'Super Admin', 'superadmin', now_str),
-        ('petugas1', default_hash, 'Petugas Absensi 1', 'admin', now_str),
-        ('petugas2', default_hash, 'Petugas Absensi 2', 'admin', now_str),
-        ('petugas3', default_hash, 'Petugas Absensi 3', 'admin', now_str),
-        ('petugas4', default_hash, 'Petugas Absensi 4', 'admin', now_str),
+        ('admin', default_hash, 'Super Admin', 'superadmin', '', now_str),
+        ('petugas1', default_hash, 'Petugas Absensi 1', 'admin', '', now_str),
+        ('petugas2', default_hash, 'Petugas Absensi 2', 'admin', '', now_str),
+        ('petugas3', default_hash, 'Petugas Absensi 3', 'admin', '', now_str),
+        ('petugas4', default_hash, 'Petugas Absensi 4', 'admin', '', now_str),
     ]
     
-    for u, h, n, r, c in default_admins:
+    for u, h, n, r, rooms, c in default_admins:
         cursor.execute("""
-            INSERT OR IGNORE INTO admins (username, password_hash, nama, role, created_at)
-            VALUES (?, ?, ?, ?, ?)
-        """, (u, h, n, r, c))
+            INSERT OR IGNORE INTO admins (username, password_hash, nama, role, assigned_rooms, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (u, h, n, r, rooms, c))
+        
+    # Inisialisasi 7 User Operator Ruangan (Password default = username)
+    operator_list = [
+        ('operatorC402', 'Operator Ruangan C402', 'C402'),
+        ('operatorC403', 'Operator Ruangan C403', 'C403'),
+        ('operatorC404', 'Operator Ruangan C404', 'C404'),
+        ('operatorC407', 'Operator Ruangan C407', 'C407'),
+        ('operatorC408', 'Operator Ruangan C408', 'C408'),
+        ('operatorC205', 'Operator Ruangan C205', 'C205'),
+        ('operatorC104', 'Operator Ruangan C104', 'C104'),
+    ]
+    
+    for op_user, op_name, op_room in operator_list:
+        op_hash = generate_password_hash(op_user, method='pbkdf2:sha256')
+        cursor.execute("""
+            INSERT OR IGNORE INTO admins (username, password_hash, nama, role, assigned_rooms, created_at)
+            VALUES (?, ?, ?, 'operator', ?, ?)
+        """, (op_user, op_hash, op_name, op_room, now_str))
     
     conn.commit()
     conn.close()
 
 def verify_admin(username, password):
-    """Memverifikasi username dan password admin, mengembalikan objek admin jika valid"""
+    """Memverifikasi username dan password admin/operator, mengembalikan objek admin jika valid"""
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM admins WHERE username = ?", (username.strip(),))
@@ -132,19 +174,19 @@ def update_admin_last_login(admin_id):
     conn.close()
 
 def get_all_admins():
-    """Mengambil daftar seluruh user admin"""
+    """Mengambil daftar seluruh user admin dan operator"""
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, username, nama, role, created_at, last_login FROM admins ORDER BY id ASC")
+    cursor.execute("SELECT id, username, nama, role, assigned_rooms, created_at, last_login FROM admins ORDER BY id ASC")
     rows = cursor.fetchall()
     conn.close()
     return [dict(row) for row in rows]
 
 def get_admin_by_id(admin_id):
-    """Mengambil data admin berdasarkan ID"""
+    """Mengambil data admin/operator berdasarkan ID"""
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, username, nama, role, created_at, last_login FROM admins WHERE id = ?", (admin_id,))
+    cursor.execute("SELECT id, username, nama, role, assigned_rooms, created_at, last_login FROM admins WHERE id = ?", (admin_id,))
     row = cursor.fetchone()
     conn.close()
     return dict(row) if row else None
@@ -162,8 +204,8 @@ def update_admin_password(admin_id, new_password):
     conn.close()
     return affected
 
-def update_admin_profile(admin_id, nama, username=None, role=None):
-    """Memperbarui informasi profil admin"""
+def update_admin_profile(admin_id, nama, username=None, role=None, assigned_rooms=None):
+    """Memperbarui informasi profil admin atau operator"""
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -176,9 +218,12 @@ def update_admin_profile(admin_id, nama, username=None, role=None):
     if username and username.strip():
         updates.append("username = ?")
         params.append(username.strip())
-    if role and role in ['superadmin', 'admin']:
+    if role and role in ['superadmin', 'admin', 'operator']:
         updates.append("role = ?")
         params.append(role)
+    if assigned_rooms is not None:
+        updates.append("assigned_rooms = ?")
+        params.append(assigned_rooms.strip())
         
     if not updates:
         conn.close()
@@ -196,16 +241,16 @@ def update_admin_profile(admin_id, nama, username=None, role=None):
         conn.close()
     return affected
 
-def create_admin(username, password, nama, role='admin'):
-    """Membuat user admin baru"""
+def create_admin(username, password, nama, role='admin', assigned_rooms=''):
+    """Membuat user admin atau operator baru"""
     hash_val = generate_password_hash(password.strip(), method='pbkdf2:sha256')
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
         cursor.execute("""
-            INSERT INTO admins (username, password_hash, nama, role, created_at)
-            VALUES (?, ?, ?, ?, ?)
-        """, (username.strip(), hash_val, nama.strip(), role, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+            INSERT INTO admins (username, password_hash, nama, role, assigned_rooms, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (username.strip(), hash_val, nama.strip(), role, (assigned_rooms or '').strip(), datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
         conn.commit()
         new_id = cursor.lastrowid
         conn.close()
@@ -479,7 +524,7 @@ def generate_unique_qr_code():
             conn.close()
             return code
 
-def register_participant(nim_nip, nama_lengkap, no_hp, institusi, pekerjaan, presentation_id=None):
+def register_participant(nim_nip, nama_lengkap, no_hp, institusi, pekerjaan, presentation_id=None, tipe_kehadiran='Offline', link_youtube=''):
     """
     Mendaftarkan presenter baru dengan status default 'pendaftar'.
     Jika presentation_id disertakan, dilakukan validasi bahwa judul tersebut masih tersedia.
@@ -512,9 +557,9 @@ def register_participant(nim_nip, nama_lengkap, no_hp, institusi, pekerjaan, pre
     created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
     cursor.execute("""
-        INSERT INTO participants (qr_code, nim_nip, nama_lengkap, no_hp, institusi, pekerjaan, presentation_id, judul_presentasi, ruangan, status, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendaftar', ?)
-    """, (qr_code, nim_nip.strip(), nama_lengkap.strip(), (no_hp or '').strip(), institusi.strip(), pekerjaan.strip(), presentation_id, judul_presentasi, ruangan, created_at))
+        INSERT INTO participants (qr_code, nim_nip, nama_lengkap, no_hp, institusi, pekerjaan, presentation_id, judul_presentasi, ruangan, tipe_kehadiran, link_youtube, is_presented, is_best_presenter, status, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 'pendaftar', ?)
+    """, (qr_code, nim_nip.strip(), nama_lengkap.strip(), (no_hp or '').strip(), institusi.strip(), pekerjaan.strip(), presentation_id, judul_presentasi, ruangan, (tipe_kehadiran or 'Offline').strip(), (link_youtube or '').strip(), created_at))
     conn.commit()
     inserted_id = cursor.lastrowid
     
@@ -523,7 +568,128 @@ def register_participant(nim_nip, nama_lengkap, no_hp, institusi, pekerjaan, pre
     conn.close()
     return dict(row)
 
-def upsert_participant_from_csv(qr_code, nim_nip, nama_lengkap, no_hp='', institusi='-', pekerjaan='Lainnya', judul_presentasi='', ruangan='-', presentation_id=None, status='pendaftar', created_at=None, attended_at=None, overwrite=True):
+def update_participant(participant_id, data):
+    """Memperbarui informasi data presenter (fitur Edit Presenter Admin)"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM participants WHERE id = ?", (participant_id,))
+    existing = cursor.fetchone()
+    if not existing:
+        conn.close()
+        return None
+        
+    nim_nip = data.get('nim_nip', existing['nim_nip']).strip()
+    nama_lengkap = data.get('nama_lengkap', existing['nama_lengkap']).strip()
+    no_hp = data.get('no_hp', existing['no_hp']).strip()
+    institusi = data.get('institusi', existing['institusi']).strip()
+    pekerjaan = data.get('pekerjaan', existing['pekerjaan']).strip()
+    tipe_kehadiran = data.get('tipe_kehadiran', existing['tipe_kehadiran'] or 'Offline').strip()
+    link_youtube = data.get('link_youtube', existing['link_youtube'] or '').strip()
+    
+    raw_pres_id = data.get('presentation_id')
+    presentation_id = existing['presentation_id']
+    judul_presentasi = existing['judul_presentasi']
+    ruangan = existing['ruangan']
+    
+    if raw_pres_id is not None and str(raw_pres_id).strip() != '':
+        try:
+            new_p_id = int(raw_pres_id)
+            cursor.execute("SELECT * FROM presentations WHERE id = ?", (new_p_id,))
+            pres = cursor.fetchone()
+            if pres:
+                presentation_id = new_p_id
+                judul_presentasi = pres['judul']
+                ruangan = pres['ruangan'] or '-'
+        except (ValueError, TypeError):
+            pass
+            
+    if 'judul_presentasi' in data and not raw_pres_id:
+        judul_presentasi = data['judul_presentasi'].strip()
+    if 'ruangan' in data and not raw_pres_id:
+        ruangan = data['ruangan'].strip()
+    
+    cursor.execute("""
+        UPDATE participants 
+        SET nim_nip = ?, nama_lengkap = ?, no_hp = ?, institusi = ?, pekerjaan = ?, 
+            presentation_id = ?, judul_presentasi = ?, ruangan = ?, 
+            tipe_kehadiran = ?, link_youtube = ?
+        WHERE id = ?
+    """, (nim_nip, nama_lengkap, no_hp, institusi, pekerjaan, presentation_id, judul_presentasi, ruangan, tipe_kehadiran, link_youtube, participant_id))
+    conn.commit()
+    
+    cursor.execute("SELECT * FROM participants WHERE id = ?", (participant_id,))
+    updated = dict(cursor.fetchone())
+    conn.close()
+    return updated
+
+def toggle_presented(participant_id):
+    """Mengubah status sudah presentasi (0/1) secara realtime dari operator atau admin"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM participants WHERE id = ?", (participant_id,))
+    p = cursor.fetchone()
+    if not p:
+        conn.close()
+        return None
+        
+    current = p['is_presented'] or 0
+    new_val = 0 if current == 1 else 1
+    presented_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S") if new_val == 1 else None
+    
+    # Jika diubah kembali menjadi belum presentasi, lepas status best_presenter
+    is_best = p['is_best_presenter'] or 0
+    if new_val == 0:
+        is_best = 0
+        
+    cursor.execute("""
+        UPDATE participants 
+        SET is_presented = ?, presented_at = ?, is_best_presenter = ?
+        WHERE id = ?
+    """, (new_val, presented_at, is_best, participant_id))
+    conn.commit()
+    
+    cursor.execute("SELECT * FROM participants WHERE id = ?", (participant_id,))
+    updated = dict(cursor.fetchone())
+    conn.close()
+    return updated
+
+def set_best_presenter(participant_id, is_best=None):
+    """
+    Mengubah status best presenter.
+    Aturan: 
+    1. Presenter harus sudah berstatus 'Sudah Presentasi' (is_presented = 1).
+    2. Maksimal hanya 1 Best Presenter per ruangan (otomatis mengganti pilihan sebelumnya di ruangan yang sama).
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM participants WHERE id = ?", (participant_id,))
+    p = cursor.fetchone()
+    if not p:
+        conn.close()
+        return {"success": False, "message": "Peserta tidak ditemukan."}
+    
+    if not p['is_presented']:
+        conn.close()
+        return {"success": False, "message": "Presenter harus berstatus 'Sudah Presentasi' terlebih dahulu sebelum ditandai sebagai Best Presenter."}
+        
+    current_best = p['is_best_presenter'] or 0
+    target_best = (1 - current_best) if is_best is None else (1 if is_best else 0)
+    
+    ruangan = p['ruangan'] or '-'
+    
+    if target_best == 1:
+        # Lepaskan status best presenter dari peserta lain di ruangan yang sama
+        cursor.execute("UPDATE participants SET is_best_presenter = 0 WHERE ruangan = ?", (ruangan,))
+        
+    cursor.execute("UPDATE participants SET is_best_presenter = ? WHERE id = ?", (target_best, participant_id))
+    conn.commit()
+    
+    cursor.execute("SELECT * FROM participants WHERE id = ?", (participant_id,))
+    updated = dict(cursor.fetchone())
+    conn.close()
+    return {"success": True, "data": updated, "is_best_presenter": target_best}
+
+def upsert_participant_from_csv(qr_code, nim_nip, nama_lengkap, no_hp='', institusi='-', pekerjaan='Lainnya', judul_presentasi='', ruangan='-', presentation_id=None, status='pendaftar', created_at=None, attended_at=None, tipe_kehadiran='Offline', link_youtube='', is_presented=0, presented_at=None, is_best_presenter=0, overwrite=True):
     """
     Menyimpan atau memperbarui data peserta dari file CSV backup (pendaftar & peserta).
     Jika data sudah ada (berdasarkan qr_code atau nim_nip):
@@ -542,6 +708,8 @@ def upsert_participant_from_csv(qr_code, nim_nip, nama_lengkap, no_hp='', instit
     cleaned_job = pekerjaan.strip() if pekerjaan else 'Lainnya'
     cleaned_judul = (judul_presentasi or '').strip()
     cleaned_ruangan = (ruangan or '-').strip()
+    cleaned_tipe = (tipe_kehadiran or 'Offline').strip()
+    cleaned_youtube = (link_youtube or '').strip()
     
     status_lower = (status or 'pendaftar').strip().lower()
     final_status = 'peserta' if ('peserta' in status_lower or 'hadir' in status_lower) and 'belum' not in status_lower else 'pendaftar'
@@ -572,9 +740,9 @@ def upsert_participant_from_csv(qr_code, nim_nip, nama_lengkap, no_hp='', instit
         if overwrite:
             cursor.execute("""
                 UPDATE participants 
-                SET qr_code = ?, nim_nip = ?, nama_lengkap = ?, no_hp = ?, institusi = ?, pekerjaan = ?, presentation_id = ?, judul_presentasi = ?, ruangan = ?, status = ?, created_at = ?, attended_at = ?
+                SET qr_code = ?, nim_nip = ?, nama_lengkap = ?, no_hp = ?, institusi = ?, pekerjaan = ?, presentation_id = ?, judul_presentasi = ?, ruangan = ?, status = ?, created_at = ?, attended_at = ?, tipe_kehadiran = ?, link_youtube = ?, is_presented = ?, presented_at = ?, is_best_presenter = ?
                 WHERE id = ?
-            """, (qr_code, cleaned_nim, cleaned_nama, cleaned_hp, cleaned_inst, cleaned_job, presentation_id, cleaned_judul, cleaned_ruangan, final_status, final_created_at, final_attended_at, existing['id']))
+            """, (qr_code, cleaned_nim, cleaned_nama, cleaned_hp, cleaned_inst, cleaned_job, presentation_id, cleaned_judul, cleaned_ruangan, final_status, final_created_at, final_attended_at, cleaned_tipe, cleaned_youtube, is_presented, presented_at, is_best_presenter, existing['id']))
             conn.commit()
             conn.close()
             return 'updated'
@@ -583,9 +751,9 @@ def upsert_participant_from_csv(qr_code, nim_nip, nama_lengkap, no_hp='', instit
             return 'skipped'
     else:
         cursor.execute("""
-            INSERT INTO participants (qr_code, nim_nip, nama_lengkap, no_hp, institusi, pekerjaan, presentation_id, judul_presentasi, ruangan, status, created_at, attended_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (qr_code, cleaned_nim, cleaned_nama, cleaned_hp, cleaned_inst, cleaned_job, presentation_id, cleaned_judul, cleaned_ruangan, final_status, final_created_at, final_attended_at))
+            INSERT INTO participants (qr_code, nim_nip, nama_lengkap, no_hp, institusi, pekerjaan, presentation_id, judul_presentasi, ruangan, status, created_at, attended_at, tipe_kehadiran, link_youtube, is_presented, presented_at, is_best_presenter)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (qr_code, cleaned_nim, cleaned_nama, cleaned_hp, cleaned_inst, cleaned_job, presentation_id, cleaned_judul, cleaned_ruangan, final_status, final_created_at, final_attended_at, cleaned_tipe, cleaned_youtube, is_presented, presented_at, is_best_presenter))
         conn.commit()
         conn.close()
         return 'inserted'
@@ -714,10 +882,10 @@ def delete_participants_bulk(participant_ids):
     conn.close()
     return affected
 
-def get_participants(status=None, search=None, pekerjaan=None, ruangan=None):
+def get_participants(status=None, search=None, pekerjaan=None, ruangan=None, best_presenter_only=False, is_presented=None, tipe_kehadiran=None):
     """
     Mengambil data peserta dengan filter status ('pendaftar'/'peserta'),
-    kata kunci pencarian (NIM/NIP, Nama, Institusi, Judul, Ruangan, QR), jenis pekerjaan, dan ruangan.
+    kata kunci pencarian, profesi, ruangan (single / multi), best presenter, dan status presentasi.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -734,18 +902,35 @@ def get_participants(status=None, search=None, pekerjaan=None, ruangan=None):
         params.append(pekerjaan)
 
     if ruangan and ruangan != 'Semua':
-        query += " AND ruangan = ?"
-        params.append(ruangan)
+        room_list = [r.strip() for r in ruangan.split(',') if r.strip()]
+        if len(room_list) == 1:
+            query += " AND ruangan = ?"
+            params.append(room_list[0])
+        elif len(room_list) > 1:
+            placeholders = ','.join(['?'] * len(room_list))
+            query += f" AND ruangan IN ({placeholders})"
+            params.extend(room_list)
+        
+    if best_presenter_only:
+        query += " AND is_best_presenter = 1"
+        
+    if is_presented is not None and str(is_presented).strip() != '':
+        query += " AND is_presented = ?"
+        params.append(int(is_presented))
+
+    if tipe_kehadiran and tipe_kehadiran != 'Semua':
+        query += " AND tipe_kehadiran = ?"
+        params.append(tipe_kehadiran)
         
     if search:
         search_pattern = f"%{search.strip()}%"
-        query += " AND (nim_nip LIKE ? OR nama_lengkap LIKE ? OR no_hp LIKE ? OR institusi LIKE ? OR qr_code LIKE ? OR judul_presentasi LIKE ? OR ruangan LIKE ?)"
-        params.extend([search_pattern, search_pattern, search_pattern, search_pattern, search_pattern, search_pattern, search_pattern])
+        query += " AND (nim_nip LIKE ? OR nama_lengkap LIKE ? OR no_hp LIKE ? OR institusi LIKE ? OR qr_code LIKE ? OR judul_presentasi LIKE ? OR ruangan LIKE ? OR link_youtube LIKE ?)"
+        params.extend([search_pattern, search_pattern, search_pattern, search_pattern, search_pattern, search_pattern, search_pattern, search_pattern])
         
     if status == 'peserta':
-        query += " ORDER BY attended_at DESC, id DESC"
+        query += " ORDER BY is_best_presenter DESC, is_presented ASC, attended_at DESC, id DESC"
     else:
-        query += " ORDER BY created_at DESC, id DESC"
+        query += " ORDER BY is_best_presenter DESC, is_presented ASC, created_at DESC, id DESC"
         
     cursor.execute(query, params)
     rows = [dict(row) for row in cursor.fetchall()]

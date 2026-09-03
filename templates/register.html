@@ -184,6 +184,46 @@
                     class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-800 text-sm transition shadow-sm placeholder:text-slate-400">
             </div>
 
+            <!-- Row 5: Konfirmasi Kehadiran Presentasi (Online / Offline + Link YouTube) -->
+            <div class="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
+                <div>
+                    <label for="tipe_kehadiran" class="block text-sm font-semibold text-slate-800 mb-1.5 flex items-center gap-1.5">
+                        <i data-lucide="radio" class="w-4 h-4 text-blue-600"></i>
+                        Konfirmasi Kehadiran Presentasi <span class="text-rose-500">*</span>
+                    </label>
+                    <div class="relative">
+                        <select id="tipe_kehadiran" name="tipe_kehadiran" required onchange="handleTipeKehadiranChange()"
+                            class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-800 text-sm transition shadow-sm appearance-none bg-white font-medium">
+                            <option value="Offline" selected>Offline (Hadir Langsung di Ruangan Seminar)</option>
+                            <option value="Online">Online (Presentasi / Video Daring via YouTube)</option>
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+                            <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-1">Pilih metode kehadiran Anda dalam membawakan presentasi</p>
+                </div>
+
+                <!-- Conditional Field: Link YouTube (Only shown when Online) -->
+                <div id="youtubeFieldWrapper" class="hidden pt-2 border-t border-slate-200 animate-fadeIn">
+                    <label for="link_youtube" class="block text-sm font-semibold text-red-700 mb-1.5 flex items-center gap-1.5">
+                        <i data-lucide="video" class="w-4 h-4 text-red-600"></i>
+                        Link Video Presentasi / YouTube <span class="text-rose-500">*</span>
+                    </label>
+                    <div class="relative">
+                        <input type="url" id="link_youtube" name="link_youtube"
+                            placeholder="Contoh: https://www.youtube.com/watch?v=xxxx atau https://youtu.be/xxxx"
+                            class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-red-300 focus:ring-2 focus:ring-red-500 focus:border-red-500 text-slate-800 text-sm transition shadow-sm placeholder:text-slate-400 bg-white">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-red-500">
+                            <i data-lucide="youtube" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <p class="text-xs text-red-600 mt-1 font-medium">
+                        Wajib diisi link video YouTube bagi presenter yang memilih mode presentasi <strong>Online</strong>.
+                    </p>
+                </div>
+            </div>
+
             <!-- Information Alert -->
             <div class="p-4 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 text-xs sm:text-sm flex items-start gap-3">
                 <i data-lucide="info" class="w-5 h-5 text-blue-600 shrink-0 mt-0.5"></i>
@@ -576,12 +616,62 @@
         if (e.key === 'Escape') closePresDropdown();
     });
 
+    function handleTipeKehadiranChange() {
+        const tipe = document.getElementById('tipe_kehadiran').value;
+        const wrapper = document.getElementById('youtubeFieldWrapper');
+        const ytInput = document.getElementById('link_youtube');
+        if (tipe === 'Online') {
+            wrapper.classList.remove('hidden');
+            ytInput.required = true;
+            ytInput.focus();
+        } else {
+            wrapper.classList.add('hidden');
+            ytInput.required = false;
+            ytInput.value = '';
+        }
+        lucide.createIcons();
+    }
+
+    // =========================================================================
+    // SMART POLLING (BACKGROUND SYNC DAFTAR JUDUL TIAP 8 DETIK)
+    // =========================================================================
+    let regAutoSyncInterval = null;
+    function startRegisterAutoSync() {
+        if (regAutoSyncInterval) clearInterval(regAutoSyncInterval);
+        regAutoSyncInterval = setInterval(() => {
+            if (document.hidden) return;
+            const isTyping = document.activeElement === presSearchInput && (presSearchInput.value.trim().length > 0);
+            if (!isTyping) {
+                loadPresentations();
+            }
+        }, 8000);
+    }
+
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) loadPresentations();
+    });
+
     // Inisialisasi daftar judul saat halaman dimuat
     loadPresentations();
+    startRegisterAutoSync();
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         
+        const tipeKehadiran = document.getElementById('tipe_kehadiran').value;
+        const linkYoutube = document.getElementById('link_youtube')?.value.trim() || '';
+
+        if (tipeKehadiran === 'Online' && !linkYoutube) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Link YouTube Wajib Diisi',
+                text: 'Bagi peserta dengan metode kehadiran Online, mohon sertakan link video presentasi YouTube Anda!',
+                confirmButtonColor: '#2563eb'
+            });
+            document.getElementById('link_youtube').focus();
+            return;
+        }
+
         const payload = {
             presentation_id: presHiddenInput.value,
             nim_nip: document.getElementById('nim_nip').value.trim(),
@@ -589,6 +679,8 @@
             no_hp: document.getElementById('no_hp').value.trim(),
             institusi: document.getElementById('institusi').value.trim(),
             pekerjaan: document.getElementById('pekerjaan').value,
+            tipe_kehadiran: tipeKehadiran,
+            link_youtube: linkYoutube,
             website_url: document.getElementById('website_url')?.value || '',
             hp_secondary: document.getElementById('hp_secondary')?.value || ''
         };
