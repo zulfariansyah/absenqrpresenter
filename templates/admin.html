@@ -619,6 +619,12 @@
                                             <i id="partSortIcon_institusi" data-lucide="arrow-up-down" class="w-3 h-3 text-slate-400"></i>
                                         </div>
                                     </th>
+                                    <th class="py-3 px-3 cursor-pointer hover:bg-slate-200/70 transition" onclick="sortPartData('pekerjaan')" title="Klik untuk mengurutkan">
+                                        <div class="flex items-center gap-1">
+                                            <span>Profesi</span>
+                                            <i id="partSortIcon_pekerjaan" data-lucide="arrow-up-down" class="w-3 h-3 text-slate-400"></i>
+                                        </div>
+                                    </th>
                                     <th class="py-3 px-3 cursor-pointer hover:bg-slate-200/70 transition" onclick="sortPartData('time')" title="Klik untuk mengurutkan">
                                         <div class="flex items-center gap-1">
                                             <span id="colWaktuHeader">Waktu</span>
@@ -1983,7 +1989,7 @@
         }
 
         function updatePartSortIcons() {
-            const cols = ['id', 'qr_code', 'nim_nip', 'nama_lengkap', 'judul_presentasi', 'ruangan', 'no_hp', 'institusi', 'time'];
+            const cols = ['id', 'qr_code', 'nim_nip', 'nama_lengkap', 'judul_presentasi', 'ruangan', 'no_hp', 'institusi', 'pekerjaan', 'time'];
             cols.forEach(c => {
                 const icon = document.getElementById(`partSortIcon_${c}`);
                 if (!icon) return;
@@ -2254,6 +2260,7 @@
                     const rawHp = (p.no_hp || '').replace(/\D/g, '');
                     const waNumber = rawHp.startsWith('0') ? '62' + rawHp.slice(1) : rawHp;
                     const safeInstitusi = escapeHtml(p.institusi);
+                    const safePekerjaan = escapeHtml(p.pekerjaan || '-');
                     const safeTime = escapeHtml(timeDisplay);
 
                     // Tipe Column HTML
@@ -2321,6 +2328,9 @@
                                 ` : `<span class="text-slate-400 font-mono">-</span>`}
                             </td>
                             <td class="py-3 px-3 text-slate-600">${safeInstitusi}</td>
+                            <td class="py-3 px-3 whitespace-nowrap">
+                                <span class="font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200 text-[11px]">${safePekerjaan}</span>
+                            </td>
                             <td class="py-3 px-3 text-slate-500 text-[11px] whitespace-nowrap">${safeTime}</td>
                             <td class="py-3 px-3 text-center">
                                 <div class="flex items-center justify-center gap-1">
