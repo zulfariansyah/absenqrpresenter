@@ -888,11 +888,10 @@ def api_add_presentation():
     data = request.get_json() or {}
     judul = data.get('judul', '').strip()
     ruangan = data.get('ruangan', '-').strip()
-    tipe = data.get('tipe', 'Offline').strip()
     if not judul:
         return jsonify({'success': False, 'message': 'Judul presentasi wajib diisi!'}), 400
         
-    pres = database.add_presentation(judul, ruangan, tipe=tipe)
+    pres = database.add_presentation(judul, ruangan)
     return jsonify({
         'success': True,
         'message': 'Judul presentasi berhasil ditambahkan!',
@@ -902,15 +901,14 @@ def api_add_presentation():
 @presenter_route('/api/admin/presentations/<int:pres_id>', methods=['PUT', 'POST'])
 @admin_required
 def api_update_presentation(pres_id):
-    """Mengubah data judul presentasi, ruangan, dan tipe"""
+    """Mengubah data judul presentasi dan ruangan"""
     data = request.get_json() or {}
     judul = data.get('judul', '').strip()
     ruangan = data.get('ruangan', '-').strip()
-    tipe = data.get('tipe', 'Offline').strip()
     if not judul:
         return jsonify({'success': False, 'message': 'Judul presentasi wajib diisi!'}), 400
         
-    success = database.update_presentation(pres_id, judul, ruangan, tipe=tipe)
+    success = database.update_presentation(pres_id, judul, ruangan)
     if success:
         return jsonify({'success': True, 'message': 'Judul presentasi berhasil diperbarui!'})
     return jsonify({'success': False, 'message': 'Judul presentasi tidak ditemukan atau gagal diperbarui.'}), 404
@@ -1069,7 +1067,7 @@ def api_import_presentations_csv():
                 skipped_count += 1
                 continue
                 
-            database.add_presentation(judul, ruangan or '-', tipe=tipe)
+            database.add_presentation(judul, ruangan or '-')
             inserted_count += 1
             
         return jsonify({

@@ -318,7 +318,7 @@ def get_all_settings():
 # ======================= PRESENTATION TITLES (JUDUL & RUANGAN) =======================
 
 def get_all_presentations(search=None, ruangan=None, tipe=None):
-    """Mengambil seluruh data judul presentasi beserta status klaim presenter"""
+    """Mengambil seluruh data judul presentasi beserta status klaim presenter dan tipe (Online/Offline/Belum Mendaftar)"""
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -327,13 +327,17 @@ def get_all_presentations(search=None, ruangan=None, tipe=None):
             p.id, 
             p.judul, 
             p.ruangan, 
-            COALESCE(p.tipe, 'Offline') AS tipe,
             p.created_at,
             pt.id AS participant_id,
             pt.nama_lengkap AS presenter_name,
             pt.nim_nip AS presenter_nim,
             pt.status AS participant_status,
             pt.qr_code AS presenter_qr,
+            pt.tipe_kehadiran AS presenter_tipe,
+            CASE 
+                WHEN pt.id IS NOT NULL THEN COALESCE(pt.tipe_kehadiran, 'Offline')
+                ELSE 'Belum Mendaftar' 
+            END AS tipe,
             CASE WHEN pt.id IS NOT NULL THEN 1 ELSE 0 END AS is_taken
         FROM presentations p
         LEFT JOIN participants pt ON pt.presentation_id = p.id
@@ -346,12 +350,15 @@ def get_all_presentations(search=None, ruangan=None, tipe=None):
         params.append(ruangan)
 
     if tipe and tipe != 'Semua':
-        query += " AND COALESCE(p.tipe, 'Offline') = ?"
-        params.append(tipe)
+        if tipe == 'Belum Mendaftar':
+            query += " AND pt.id IS NULL"
+        else:
+            query += " AND pt.id IS NOT NULL AND COALESCE(pt.tipe_kehadiran, 'Offline') = ?"
+            params.append(tipe)
         
     if search:
         search_pattern = f"%{search.strip()}%"
-        query += " AND (p.judul LIKE ? OR p.ruangan LIKE ? OR p.tipe LIKE ? OR pt.nama_lengkap LIKE ? OR pt.nim_nip LIKE ?)"
+        query += " AND (p.judul LIKE ? OR p.ruangan LIKE ? OR pt.nama_lengkap LIKE ? OR pt.nim_nip LIKE ? OR pt.tipe_kehadiran LIKE ?)"
         params.extend([search_pattern, search_pattern, search_pattern, search_pattern, search_pattern])
         
     query += " ORDER BY p.id ASC"
@@ -370,7 +377,6 @@ def get_available_presentations():
             p.id, 
             p.judul, 
             p.ruangan, 
-            COALESCE(p.tipe, 'Offline') AS tipe,
             pt.nama_lengkap AS presenter_name,
             pt.qr_code AS presenter_qr,
             CASE WHEN pt.id IS NOT NULL THEN 1 ELSE 0 END AS is_taken
@@ -388,10 +394,18 @@ def get_presentation_by_id(presentation_id):
     cursor = conn.cursor()
     cursor.execute("""
         SELECT 
-            p.*, 
+            p.id,
+            p.judul,
+            p.ruangan,
+            p.created_at,
             pt.id AS participant_id,
             pt.nama_lengkap AS presenter_name,
             pt.nim_nip AS presenter_nim,
+            pt.tipe_kehadiran AS presenter_tipe,
+            CASE 
+                WHEN pt.id IS NOT NULL THEN COALESCE(pt.tipe_kehadiran, 'Offline')
+                ELSE 'Belum Mendaftar' 
+            END AS tipe,
             CASE WHEN pt.id IS NOT NULL THEN 1 ELSE 0 END AS is_taken
         FROM presentations p
         LEFT JOIN participants pt ON pt.presentation_id = p.id
@@ -410,11 +424,10 @@ def get_distinct_ruangan():
     conn.close()
     return rows
 
-def add_presentation(judul, ruangan='-', tipe='Offline'):
+def add_presentation(judul, ruangan='-'):
     """Menambahkan judul presentasi baru"""
     cleaned_judul = judul.strip()
     cleaned_ruangan = (ruangan or '-').strip()
-    cleaned_tipe = 'Online' if (tipe or '').strip().lower() == 'online' else 'Offline'
     if not cleaned_judul:
         return None
         
@@ -422,19 +435,18 @@ def add_presentation(judul, ruangan='-', tipe='Offline'):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
-        INSERT INTO presentations (judul, ruangan, tipe, created_at)
-        VALUES (?, ?, ?, ?)
-    """, (cleaned_judul, cleaned_ruangan, cleaned_tipe, created_at))
+        INSERT INTO presentations (judul, ruangan, created_at)
+        VALUES (?, ?, ?)
+    """, (cleaned_judul, cleaned_ruangan, created_at))
     conn.commit()
     new_id = cursor.lastrowid
     conn.close()
     return get_presentation_by_id(new_id)
 
-def update_presentation(presentation_id, judul, ruangan='-', tipe='Offline'):
-    """Memperbarui judul presentasi, ruangan, dan tipe, serta sinkronisasi data peserta yang memilihnya"""
+def update_presentation(presentation_id, judul, ruangan='-'):
+    """Memperbarui judul presentasi dan ruangan, serta sinkronisasi data peserta yang memilihnya"""
     cleaned_judul = judul.strip()
     cleaned_ruangan = (ruangan or '-').strip()
-    cleaned_tipe = 'Online' if (tipe or '').strip().lower() == 'online' else 'Offline'
     if not cleaned_judul:
         return False
         
@@ -442,18 +454,18 @@ def update_presentation(presentation_id, judul, ruangan='-', tipe='Offline'):
     cursor = conn.cursor()
     cursor.execute("""
         UPDATE presentations
-        SET judul = ?, ruangan = ?, tipe = ?
+        SET judul = ?, ruangan = ?
         WHERE id = ?
-    """, (cleaned_judul, cleaned_ruangan, cleaned_tipe, presentation_id))
+    """, (cleaned_judul, cleaned_ruangan, presentation_id))
     affected = cursor.rowcount > 0
     
     # Sinkronisasi ke data participants jika ada yang terkait
     if affected:
         cursor.execute("""
             UPDATE participants
-            SET judul_presentasi = ?, ruangan = ?, tipe_kehadiran = ?
+            SET judul_presentasi = ?, ruangan = ?
             WHERE presentation_id = ?
-        """, (cleaned_judul, cleaned_ruangan, cleaned_tipe, presentation_id))
+        """, (cleaned_judul, cleaned_ruangan, presentation_id))
         
     conn.commit()
     conn.close()

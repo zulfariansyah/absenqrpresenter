@@ -733,6 +733,7 @@
                             <option value="Semua">Semua Tipe</option>
                             <option value="Offline">Offline</option>
                             <option value="Online">Online</option>
+                            <option value="Belum Mendaftar">Belum Mendaftar</option>
                         </select>
 
                         <button onclick="loadPresentationsAdmin()" class="p-1.5 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-600 transition" title="Muat Ulang Judul">
@@ -1134,15 +1135,6 @@
                     <input type="text" id="modalPresRuangan" placeholder="Contoh: Ruang A / Lab 1 / Aud 2"
                         class="w-full px-4 py-2 rounded-xl border border-slate-300 text-slate-800 text-sm focus:ring-2 focus:ring-blue-500">
                     <p class="text-[11px] text-slate-400 mt-0.5">Opsional. Biarkan kosong atau isi dengan nama ruangan presentasi.</p>
-                </div>
-                <div>
-                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                        Tipe Presentasi <span class="text-rose-500">*</span>
-                    </label>
-                    <select id="modalPresTipe" required class="w-full px-4 py-2 rounded-xl border border-slate-300 text-slate-800 text-sm focus:ring-2 focus:ring-blue-500 bg-white">
-                        <option value="Offline">Offline (Tatap Muka di Ruangan)</option>
-                        <option value="Online">Online (Virtual / Video YouTube)</option>
-                    </select>
                 </div>
 
                 <div class="flex gap-2 pt-3 border-t border-slate-100">
@@ -2749,7 +2741,7 @@
             const typeFilter = document.getElementById('presFilterTipe')?.value || 'Semua';
 
             let filtered = currentPresentationsList.filter(item => {
-                const itemType = item.tipe || 'Offline';
+                const itemType = item.tipe || (item.is_taken ? (item.presenter_tipe || 'Offline') : 'Belum Mendaftar');
                 const matchRoom = (roomFilter === 'Semua' || item.ruangan === roomFilter);
                 const matchType = (typeFilter === 'Semua' || itemType === typeFilter);
                 const matchSearch = (!search || 
@@ -2776,8 +2768,8 @@
                     valB = b.is_taken ? 1 : 0;
                     return presSortDir === 'asc' ? valA - valB : valB - valA;
                 } else if (presSortCol === 'tipe') {
-                    valA = (a.tipe || 'Offline').toLowerCase();
-                    valB = (b.tipe || 'Offline').toLowerCase();
+                    valA = (a.tipe || (a.is_taken ? (a.presenter_tipe || 'Offline') : 'Belum Mendaftar')).toLowerCase();
+                    valB = (b.tipe || (b.is_taken ? (b.presenter_tipe || 'Offline') : 'Belum Mendaftar')).toLowerCase();
                 } else {
                     valA = (a[presSortCol] || '').toString().toLowerCase();
                     valB = (b[presSortCol] || '').toString().toLowerCase();
@@ -2806,11 +2798,16 @@
                     const isChecked = selectedPresIds.has(item.id);
                     const safeJudul = escapeHtml(item.judul);
                     const safeRuang = escapeHtml(item.ruangan || '-');
-                    const presTipe = item.tipe || 'Offline';
-                    const isOnline = presTipe === 'Online';
-                    const tipeBadge = isOnline ? 
-                        `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 font-bold text-[11px]"><i data-lucide="video" class="w-3 h-3 text-rose-500"></i> Online</span>` :
-                        `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200 font-bold text-[11px]"><i data-lucide="map-pin" class="w-3 h-3 text-slate-500"></i> Offline</span>`;
+                    const presTipe = item.tipe || (item.is_taken ? (item.presenter_tipe || 'Offline') : 'Belum Mendaftar');
+                    
+                    let tipeBadge = '';
+                    if (presTipe === 'Online') {
+                        tipeBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 font-bold text-[11px]"><i data-lucide="video" class="w-3 h-3 text-rose-500"></i> Online</span>`;
+                    } else if (presTipe === 'Offline') {
+                        tipeBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 font-bold text-[11px]"><i data-lucide="map-pin" class="w-3 h-3 text-blue-600"></i> Offline</span>`;
+                    } else {
+                        tipeBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200 font-medium text-[11px]"><i data-lucide="minus-circle" class="w-3 h-3 text-slate-400"></i> Belum Mendaftar</span>`;
+                    }
                     
                     let statusBadge = '';
                     if (item.is_taken) {
@@ -2850,7 +2847,7 @@
                             <td class="py-3 px-4">${statusBadge}</td>
                             <td class="py-3 px-4 text-center">
                                 <div class="flex items-center justify-center gap-1.5">
-                                    <button onclick="openEditPresentationModal(${item.id}, '${encodeURIComponent(item.judul)}', '${encodeURIComponent(item.ruangan || '')}', '${presTipe}')"
+                                    <button onclick="openEditPresentationModal(${item.id}, '${encodeURIComponent(item.judul)}', '${encodeURIComponent(item.ruangan || '')}')"
                                         class="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition" title="Edit Judul & Ruangan">
                                         <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
                                     </button>
@@ -2874,17 +2871,15 @@
             document.getElementById('modalPresId').value = '';
             document.getElementById('modalPresJudul').value = '';
             document.getElementById('modalPresRuangan').value = '';
-            document.getElementById('modalPresTipe').value = 'Offline';
             document.getElementById('presentationModal').classList.remove('hidden');
             lucide.createIcons();
         }
 
-        function openEditPresentationModal(id, encodedJudul, encodedRuangan, tipe = 'Offline') {
+        function openEditPresentationModal(id, encodedJudul, encodedRuangan) {
             document.getElementById('presentationModalTitle').textContent = 'Edit Judul & Ruangan Presentasi';
             document.getElementById('modalPresId').value = id;
             document.getElementById('modalPresJudul').value = decodeURIComponent(encodedJudul);
             document.getElementById('modalPresRuangan').value = decodeURIComponent(encodedRuangan);
-            document.getElementById('modalPresTipe').value = tipe || 'Offline';
             document.getElementById('presentationModal').classList.remove('hidden');
             lucide.createIcons();
         }
@@ -2900,7 +2895,6 @@
                 const id = document.getElementById('modalPresId').value;
                 const judul = document.getElementById('modalPresJudul').value.trim();
                 const ruangan = document.getElementById('modalPresRuangan').value.trim();
-                const tipe = document.getElementById('modalPresTipe').value;
 
                 if (!judul) {
                     Swal.fire({ icon: 'warning', title: 'Judul Wajib Diisi', text: 'Silakan isi teks judul presentasi!', confirmButtonColor: '#2563eb' });
@@ -2916,7 +2910,7 @@
                     const res = await fetch(url, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ judul, ruangan, tipe })
+                        body: JSON.stringify({ judul, ruangan })
                     });
                     const json = await res.json();
 
