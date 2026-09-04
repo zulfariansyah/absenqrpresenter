@@ -36,13 +36,26 @@ class SeminarAttendanceSystemTestCase(unittest.TestCase):
         self.assertEqual(code, code.upper())
 
     def test_02_registration(self):
-        """Uji pendaftaran peserta baru masuk ke status 'pendaftar'"""
-        res = self.app.post('/api/register', json={
+        """Uji pendaftaran peserta baru masuk ke status 'pendaftar' & validasi link_slide mandatory"""
+        # Gagal tanpa link_slide (wajib)
+        fail_res = self.app.post('/api/register', json={
             'nim_nip': '2110511001',
             'nama_lengkap': 'Ahmad Fauzi',
             'no_hp': '081234567890',
             'institusi': 'Universitas Indonesia',
             'pekerjaan': 'Mahasiswa'
+        })
+        self.assertEqual(fail_res.status_code, 400)
+        self.assertIn('Link Slide Presentasi', json.loads(fail_res.data)['message'])
+
+        # Sukses dengan link_slide
+        res = self.app.post('/api/register', json={
+            'nim_nip': '2110511001',
+            'nama_lengkap': 'Ahmad Fauzi',
+            'no_hp': '081234567890',
+            'institusi': 'Universitas Indonesia',
+            'pekerjaan': 'Mahasiswa',
+            'link_slide': 'https://drive.google.com/test-slide'
         })
         self.assertEqual(res.status_code, 200)
         data = json.loads(res.data)
@@ -52,6 +65,7 @@ class SeminarAttendanceSystemTestCase(unittest.TestCase):
         self.assertEqual(len(p['qr_code']), 10)
         self.assertEqual(p['nama_lengkap'], 'Ahmad Fauzi')
         self.assertEqual(p['no_hp'], '081234567890')
+        self.assertEqual(p['link_slide'], 'https://drive.google.com/test-slide')
         self.assertIsNone(p['attended_at'])
 
     def test_03_auth_protection_and_login(self):
@@ -103,7 +117,8 @@ class SeminarAttendanceSystemTestCase(unittest.TestCase):
             'nama_lengkap': 'Prof. Dr. Rina Wijaya',
             'no_hp': '081299998888',
             'institusi': 'ITB',
-            'pekerjaan': 'Dosen'
+            'pekerjaan': 'Dosen',
+            'link_slide': 'https://drive.google.com/slide-rina'
         })
         p = json.loads(reg_res.data)['data']
         qr_code = p['qr_code']
@@ -133,11 +148,11 @@ class SeminarAttendanceSystemTestCase(unittest.TestCase):
 
         # Daftarkan 2 orang
         p1 = json.loads(self.app.post('/api/register', json={
-            'nim_nip': '111', 'nama_lengkap': 'Peserta 1 (Belum Hadir)', 'no_hp': '08120000001', 'institusi': 'Inst A', 'pekerjaan': 'Mahasiswa'
+            'nim_nip': '111', 'nama_lengkap': 'Peserta 1 (Belum Hadir)', 'no_hp': '08120000001', 'institusi': 'Inst A', 'pekerjaan': 'Mahasiswa', 'link_slide': 'https://drive.google.com/s1'
         }).data)['data']
 
         p2 = json.loads(self.app.post('/api/register', json={
-            'nim_nip': '222', 'nama_lengkap': 'Peserta 2 (Akan Scan Hadir)', 'no_hp': '08120000002', 'institusi': 'Inst B', 'pekerjaan': 'Praktisi'
+            'nim_nip': '222', 'nama_lengkap': 'Peserta 2 (Akan Scan Hadir)', 'no_hp': '08120000002', 'institusi': 'Inst B', 'pekerjaan': 'Praktisi', 'link_slide': 'https://drive.google.com/s2'
         }).data)['data']
 
         # Scan p2 agar hadir
@@ -168,7 +183,7 @@ class SeminarAttendanceSystemTestCase(unittest.TestCase):
         self.login_admin()
 
         p = json.loads(self.app.post('/api/register', json={
-            'nim_nip': '333', 'nama_lengkap': 'Budi', 'no_hp': '081233333333', 'institusi': 'UGM', 'pekerjaan': 'Lainnya'
+            'nim_nip': '333', 'nama_lengkap': 'Budi', 'no_hp': '081233333333', 'institusi': 'UGM', 'pekerjaan': 'Lainnya', 'link_slide': 'https://drive.google.com/s3'
         }).data)['data']
 
         # QR Image (Public)
@@ -252,7 +267,8 @@ class SeminarAttendanceSystemTestCase(unittest.TestCase):
             'nama_lengkap': '<script>alert("hacked")</script>Budi',
             'no_hp': '081234567890',
             'institusi': '<img src=x onerror=alert(1)>ITB',
-            'pekerjaan': 'Mahasiswa'
+            'pekerjaan': 'Mahasiswa',
+            'link_slide': 'https://drive.google.com/test-slide'
         })
         self.assertEqual(xss_res.status_code, 200)
         data = json.loads(xss_res.data)['data']
@@ -268,7 +284,8 @@ class SeminarAttendanceSystemTestCase(unittest.TestCase):
             'nama_lengkap': 'Budi Duplikat',
             'no_hp': '081234567890',
             'institusi': 'ITB',
-            'pekerjaan': 'Mahasiswa'
+            'pekerjaan': 'Mahasiswa',
+            'link_slide': 'https://drive.google.com/test-slide'
         })
         self.assertEqual(dup_res.status_code, 400)
         dup_data = json.loads(dup_res.data)
@@ -281,6 +298,7 @@ class SeminarAttendanceSystemTestCase(unittest.TestCase):
             'no_hp': '081234567890',
             'institusi': 'Spam Corp',
             'pekerjaan': 'Mahasiswa',
+            'link_slide': 'https://drive.google.com/test-slide',
             'website_url': 'http://spam-link.com'
         })
         self.assertEqual(bot_res.status_code, 400)
@@ -295,7 +313,8 @@ class SeminarAttendanceSystemTestCase(unittest.TestCase):
                 'nama_lengkap': f'Peserta {i}',
                 'no_hp': f'0812000000{i}',
                 'institusi': 'Kampus',
-                'pekerjaan': 'Mahasiswa'
+                'pekerjaan': 'Mahasiswa',
+                'link_slide': 'https://drive.google.com/test-slide'
             })
             self.assertEqual(r.status_code, 200)
 
@@ -305,7 +324,8 @@ class SeminarAttendanceSystemTestCase(unittest.TestCase):
             'nama_lengkap': 'Peserta Terblokir',
             'no_hp': '08120000099',
             'institusi': 'Kampus',
-            'pekerjaan': 'Mahasiswa'
+            'pekerjaan': 'Mahasiswa',
+            'link_slide': 'https://drive.google.com/test-slide'
         })
         self.assertEqual(rate_limit_res.status_code, 429)
 
@@ -374,7 +394,8 @@ class SeminarAttendanceSystemTestCase(unittest.TestCase):
             'nama_lengkap': 'Doni Prasetya',
             'no_hp': '085711223344',
             'institusi': 'Undip',
-            'pekerjaan': 'Mahasiswa'
+            'pekerjaan': 'Mahasiswa',
+            'link_slide': 'https://drive.google.com/s-doni'
         })
         self.assertEqual(r1.status_code, 200)
 
@@ -383,7 +404,8 @@ class SeminarAttendanceSystemTestCase(unittest.TestCase):
             'nama_lengkap': 'Fitri Handayani',
             'no_hp': '087855667788',
             'institusi': 'Unair',
-            'pekerjaan': 'Dosen'
+            'pekerjaan': 'Dosen',
+            'link_slide': 'https://drive.google.com/s-fitri'
         })
         self.assertEqual(r2.status_code, 200)
 
@@ -513,7 +535,8 @@ class SeminarAttendanceSystemTestCase(unittest.TestCase):
             'nama_lengkap': 'Presenter Pertama',
             'no_hp': '0811111111',
             'institusi': 'IPB',
-            'pekerjaan': 'Dosen'
+            'pekerjaan': 'Dosen',
+            'link_slide': 'https://drive.google.com/s-pres1'
         })
         self.assertEqual(r1.status_code, 200)
         d1 = json.loads(r1.data)['data']
@@ -527,7 +550,8 @@ class SeminarAttendanceSystemTestCase(unittest.TestCase):
             'nama_lengkap': 'Presenter Kedua',
             'no_hp': '0822222222',
             'institusi': 'ITB',
-            'pekerjaan': 'Mahasiswa'
+            'pekerjaan': 'Mahasiswa',
+            'link_slide': 'https://drive.google.com/s-pres2'
         })
         self.assertEqual(r2.status_code, 400)
         r2_data = json.loads(r2.data)
@@ -553,7 +577,8 @@ class SeminarAttendanceSystemTestCase(unittest.TestCase):
             'nama_lengkap': 'dr. Maya Sari',
             'no_hp': '0812555001',
             'institusi': 'RS Medika',
-            'pekerjaan': 'Praktisi'
+            'pekerjaan': 'Praktisi',
+            'link_slide': 'https://drive.google.com/s-maya'
         })
 
         # 1. Export CSV harus memiliki header Judul Presentasi dan Ruangan
@@ -633,7 +658,8 @@ class SeminarAttendanceSystemTestCase(unittest.TestCase):
             'nama_lengkap': 'Presenter 1',
             'no_hp': '081299001',
             'institusi': 'Kampus 1',
-            'pekerjaan': 'Mahasiswa'
+            'pekerjaan': 'Mahasiswa',
+            'link_slide': 'https://drive.google.com/s-p1'
         })
         r2 = self.app.post('/api/register', json={
             'presentation_id': pres2['id'],
@@ -641,7 +667,8 @@ class SeminarAttendanceSystemTestCase(unittest.TestCase):
             'nama_lengkap': 'Presenter 2',
             'no_hp': '081299002',
             'institusi': 'Kampus 2',
-            'pekerjaan': 'Dosen'
+            'pekerjaan': 'Dosen',
+            'link_slide': 'https://drive.google.com/s-p2'
         })
         r3 = self.app.post('/api/register', json={
             'presentation_id': pres3['id'],
@@ -649,7 +676,8 @@ class SeminarAttendanceSystemTestCase(unittest.TestCase):
             'nama_lengkap': 'Presenter 3',
             'no_hp': '081299003',
             'institusi': 'Kampus 3',
-            'pekerjaan': 'Praktisi'
+            'pekerjaan': 'Praktisi',
+            'link_slide': 'https://drive.google.com/s-p3'
         })
 
         id1 = json.loads(r1.data)['data']['id']
@@ -702,7 +730,8 @@ class SeminarAttendanceSystemTestCase(unittest.TestCase):
             'institusi': 'Unmul',
             'pekerjaan': 'Mahasiswa S1',
             'judul_presentasi': 'Makalah S1',
-            'ruangan': 'Ruang 101'
+            'ruangan': 'Ruang 101',
+            'link_slide': 'https://drive.google.com/s-s1'
         })
         self.assertEqual(r_s1.status_code, 200)
         qr_s1 = json.loads(r_s1.data)['data']['qr_code']
@@ -714,7 +743,8 @@ class SeminarAttendanceSystemTestCase(unittest.TestCase):
             'institusi': 'Unmul',
             'pekerjaan': 'Mahasiswa S2',
             'judul_presentasi': 'Makalah S2',
-            'ruangan': 'Ruang 102'
+            'ruangan': 'Ruang 102',
+            'link_slide': 'https://drive.google.com/s-s2'
         })
         self.assertEqual(r_s2.status_code, 200)
         qr_s2 = json.loads(r_s2.data)['data']['qr_code']
@@ -761,7 +791,8 @@ class SeminarAttendanceSystemTestCase(unittest.TestCase):
             'institusi': 'Unmul',
             'pekerjaan': 'Dosen',
             'judul_presentasi': 'Judul Maju',
-            'ruangan': 'Ruang 201'
+            'ruangan': 'Ruang 201',
+            'link_slide': 'https://drive.google.com/s-maju'
         })
         qr1 = json.loads(r1.data)['data']['qr_code']
         self.app.post('/api/scan', json={'qr_code': qr1})
@@ -773,7 +804,8 @@ class SeminarAttendanceSystemTestCase(unittest.TestCase):
             'institusi': 'Unmul',
             'pekerjaan': 'Dosen',
             'judul_presentasi': 'Judul Belum',
-            'ruangan': 'Ruang 201'
+            'ruangan': 'Ruang 201',
+            'link_slide': 'https://drive.google.com/s-belum'
         })
         qr2 = json.loads(r2.data)['data']['qr_code']
         self.app.post('/api/scan', json={'qr_code': qr2})
@@ -851,7 +883,8 @@ class SeminarAttendanceSystemTestCase(unittest.TestCase):
             'pekerjaan': 'Mahasiswa S1',
             'presentation_id': p1['id'],
             'tipe_kehadiran': 'Online',
-            'link_youtube': 'https://youtu.be/dummyvideo1'
+            'link_youtube': 'https://youtu.be/dummyvideo1',
+            'link_slide': 'https://drive.google.com/s-budi'
         })
         self.assertEqual(reg1.status_code, 200)
 
@@ -863,7 +896,8 @@ class SeminarAttendanceSystemTestCase(unittest.TestCase):
             'institusi': 'ITB',
             'pekerjaan': 'Dosen',
             'presentation_id': p2['id'],
-            'tipe_kehadiran': 'Offline'
+            'tipe_kehadiran': 'Offline',
+            'link_slide': 'https://drive.google.com/s-siti'
         })
         self.assertEqual(reg2.status_code, 200)
 

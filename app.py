@@ -432,6 +432,12 @@ def api_register():
             'success': False,
             'message': 'Semua kolom formulir (No. Identitas, Nama Lengkap, No. HP / WhatsApp, Institusi, Pekerjaan) wajib diisi!'
         }), 400
+
+    if not raw_slide:
+        return jsonify({
+            'success': False,
+            'message': 'Link Slide Presentasi (Google Drive / Canva / Google Slides) wajib diisi!'
+        }), 400
         
     tipe_kehadiran = 'Online' if raw_tipe.lower() == 'online' else 'Offline'
     if tipe_kehadiran == 'Online' and not raw_youtube:
@@ -605,8 +611,18 @@ def api_edit_participant(participant_id):
     data = request.get_json() or {}
     raw_nim = data.get('nim_nip', '').strip()
     raw_nama = data.get('nama_lengkap', '').strip()
+    raw_slide = data.get('link_slide', '').strip()
+    raw_tipe = data.get('tipe_kehadiran', '').strip()
+    raw_youtube = data.get('link_youtube', '').strip()
+
     if not raw_nim or not raw_nama:
         return jsonify({'success': False, 'message': 'No. Identitas dan Nama Lengkap wajib diisi!'}), 400
+
+    if 'link_slide' in data and not raw_slide:
+        return jsonify({'success': False, 'message': 'Link Slide Presentasi wajib diisi!'}), 400
+
+    if raw_tipe.lower() == 'online' and not raw_youtube:
+        return jsonify({'success': False, 'message': 'Link Video YouTube wajib diisi untuk presenter berstatus Online!'}), 400
 
     updated = database.update_participant(participant_id, data)
     if not updated:
