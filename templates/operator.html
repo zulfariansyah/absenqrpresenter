@@ -89,57 +89,57 @@
 <body class="min-h-screen flex flex-col text-slate-800 antialiased bg-slate-50 select-none">
     <!-- Top Header -->
     <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex items-center justify-between h-16">
+        <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between py-2.5 sm:py-0 sm:h-16 gap-2.5 sm:gap-4">
                 <!-- Brand Identity -->
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2.5 sm:gap-3">
                     {% if event_settings.event_logo %}
-                        <img src="{{ event_settings.event_logo }}" alt="Logo" class="w-10 h-10 rounded-xl object-contain bg-white p-1 border border-slate-200 shadow-xs">
+                        <img src="{{ event_settings.event_logo }}" alt="Logo" class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl object-contain bg-white p-1 border border-slate-200 shadow-xs shrink-0">
                     {% else %}
-                        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-600 flex items-center justify-center text-white shadow-md shadow-emerald-500/20">
-                            <i data-lucide="monitor" class="w-5 h-5"></i>
+                        <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-600 flex items-center justify-center text-white shadow-md shadow-emerald-500/20 shrink-0">
+                            <i data-lucide="monitor" class="w-4 h-4 sm:w-5 sm:h-5"></i>
                         </div>
                     {% endif %}
-                    <div>
-                        <div class="font-extrabold text-base sm:text-lg text-slate-900 tracking-tight leading-tight">
+                    <div class="min-w-0">
+                        <div class="font-extrabold text-sm sm:text-base md:text-lg text-slate-900 tracking-tight leading-tight truncate">
                             {{ event_settings.event_name }}
                         </div>
-                        <div class="flex items-center gap-2">
-                            <span class="text-xs font-bold text-emerald-700 uppercase tracking-wider">Console Operator</span>
-                            <span class="text-[11px] font-mono font-bold bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded-md border border-emerald-300 inline-flex items-center gap-1">
+                        <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                            <span class="text-[10px] sm:text-xs font-bold text-emerald-700 uppercase tracking-wider">Console Operator</span>
+                            <span class="text-[10px] sm:text-[11px] font-mono font-bold bg-emerald-100 text-emerald-900 px-1.5 sm:px-2 py-0.5 rounded-md border border-emerald-300 inline-flex items-center gap-1">
                                 <i data-lucide="door-open" class="w-3 h-3 text-emerald-700"></i>
-                                <span>Ruangan: {{ assigned_rooms if assigned_rooms else 'Semua' }}</span>
+                                <span>Ruang: {{ assigned_rooms if assigned_rooms else 'Semua' }}</span>
                             </span>
                         </div>
                     </div>
                 </div>
 
                 <!-- Right Header Actions: Timer Setting, Operator Info & Logout -->
-                <div class="flex items-center gap-2 sm:gap-4">
+                <div class="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 w-full sm:w-auto pt-1.5 sm:pt-0 border-t sm:border-t-0 border-slate-100">
                     <!-- Default Timer Setting -->
-                    <div class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 rounded-xl border border-slate-200 text-xs" title="Durasi Timer Standar untuk Setiap Presenter di Ruangan Ini">
-                        <i data-lucide="timer" class="w-4 h-4 text-blue-600"></i>
-                        <span class="font-semibold text-slate-700 hidden sm:inline">Timer Default:</span>
+                    <div class="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 bg-slate-100 rounded-xl border border-slate-200 text-xs" title="Durasi Timer Standar untuk Setiap Presenter di Ruangan Ini">
+                        <i data-lucide="timer" class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600"></i>
+                        <span class="font-semibold text-slate-700 text-[11px] sm:text-xs">Timer:</span>
                         <input type="number" id="defaultTimerInput" min="1" max="120" value="10"
-                            class="w-14 px-2 py-1 text-center font-bold font-mono text-xs rounded-lg border border-slate-300 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                            class="w-12 sm:w-14 px-1.5 py-0.5 text-center font-bold font-mono text-xs rounded-lg border border-slate-300 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
                             onchange="saveDefaultTimerSetting(this.value)">
-                        <span class="text-slate-600 font-medium">Mnt</span>
+                        <span class="text-slate-500 font-medium text-[11px] sm:text-xs">Mnt</span>
                     </div>
 
                     <!-- Operator Badge -->
-                    <div class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
-                        <div class="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold">
+                    <div class="flex items-center gap-2 px-2.5 sm:px-3 py-1 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                        <div class="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0">
                             {{ admin_name[0] | upper }}
                         </div>
-                        <div class="text-left">
-                            <div class="font-bold text-slate-800 leading-none">{{ admin_name }}</div>
+                        <div class="text-left hidden xs:block">
+                            <div class="font-bold text-slate-800 leading-none text-xs truncate max-w-[100px] sm:max-w-[140px]">{{ admin_name }}</div>
                             <div class="text-[10px] text-slate-400 font-mono">@{{ admin_username }}</div>
                         </div>
                     </div>
 
                     <!-- Logout Button -->
-                    <button onclick="handleLogout()" type="button" class="px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition flex items-center gap-1.5">
-                        <i data-lucide="log-out" class="w-4 h-4"></i>
+                    <button onclick="handleLogout()" type="button" class="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition flex items-center gap-1">
+                        <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
                         <span class="hidden sm:inline">Logout</span>
                     </button>
                 </div>
@@ -148,11 +148,11 @@
     </header>
 
     <!-- Main Container -->
-    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5">
+    <main class="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-5">
         <!-- Control Bar & Stats -->
-        <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
             <div>
-                <h1 class="text-lg sm:text-xl font-extrabold text-slate-900 flex items-center gap-2">
+                <h1 class="text-base sm:text-lg md:text-xl font-extrabold text-slate-900 flex items-center gap-2">
                     <i data-lucide="presentation" class="w-5 h-5 text-emerald-600"></i>
                     <span>Daftar Presenter Ruangan <span class="text-emerald-700 font-mono">{{ assigned_rooms if assigned_rooms else 'Semua' }}</span></span>
                 </h1>
@@ -162,9 +162,9 @@
             </div>
 
             <!-- Search & Refresh Controls -->
-            <div class="flex items-center gap-2">
-                <div class="relative w-48 sm:w-60">
-                    <input type="text" id="opSearchInput" placeholder="Cari presenter..."
+            <div class="flex items-center gap-2 w-full md:w-auto">
+                <div class="relative flex-1 md:w-64">
+                    <input type="text" id="opSearchInput" placeholder="Cari presenter, NIM, judul..."
                         oninput="filterPresenterTable()"
                         class="w-full pl-8 pr-3 py-2 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white">
                     <div class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400">
@@ -172,7 +172,7 @@
                     </div>
                 </div>
 
-                <button onclick="loadOperatorData()" class="px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold transition flex items-center gap-1.5" title="Muat Ulang Data">
+                <button onclick="loadOperatorData()" class="px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold transition flex items-center gap-1.5 shrink-0 shadow-xs" title="Muat Ulang Data">
                     <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
                     <span class="hidden sm:inline">Refresh</span>
                 </button>
@@ -181,30 +181,31 @@
 
         <!-- Presenters Table Card -->
         <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
-            <div class="p-3.5 bg-slate-50/80 border-b border-slate-200 flex items-center justify-between text-xs">
+            <div class="p-3 sm:p-3.5 bg-slate-50/80 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                 <div class="font-bold text-slate-700 flex items-center gap-2">
                     <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
                     <span>Total Presenter: <strong id="opTotalCount" class="text-emerald-700 font-mono font-bold">0</strong> Peserta</span>
                 </div>
-                <div class="flex items-center gap-3 text-[11px] text-slate-500">
-                    <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-slate-300"></span> Abu-abu: Sudah Presentasi</span>
+                <div class="flex items-center gap-3 text-[11px] text-slate-500 flex-wrap">
+                    <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-slate-300"></span> Abu-abu: Selesai</span>
                     <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span> Kuning: Best Presenter ⭐</span>
+                    <span class="text-[10px] text-slate-400 sm:hidden">👉 Geser ke kanan untuk aksi</span>
                 </div>
             </div>
 
-            <!-- Table Container (No horizontal page scroll, fixed table layout with marquee) -->
-            <div class="w-full overflow-hidden">
-                <table class="w-full text-left text-xs table-fixed border-collapse">
-                    <thead class="bg-slate-100/90 text-slate-700 font-bold uppercase tracking-wider border-b border-slate-200">
+            <!-- Table Container (Horizontal scroll enabled for phone & tablet) -->
+            <div class="w-full overflow-x-auto">
+                <table class="w-full text-left text-xs border-collapse min-w-[950px]">
+                    <thead class="bg-slate-100/90 text-slate-700 font-bold uppercase tracking-wider border-b border-slate-200 select-none">
                         <tr>
-                            <th class="py-3 px-2 w-10 text-center">No</th>
-                            <th class="py-3 px-3 w-28">No. Identitas</th>
-                            <th class="py-3 px-3 w-44">Nama Presenter</th>
-                            <th class="py-3 px-3 w-72">Judul Presentasi</th>
+                            <th class="py-3 px-2 w-12 text-center">No</th>
+                            <th class="py-3 px-3 w-32">No. Identitas</th>
+                            <th class="py-3 px-3 w-48">Nama Presenter</th>
+                            <th class="py-3 px-3 min-w-[260px]">Judul Presentasi</th>
                             <th class="py-3 px-2.5 w-24 text-center">Tipe</th>
-                            <th class="py-3 px-3 w-32">WhatsApp</th>
+                            <th class="py-3 px-3 w-36">WhatsApp</th>
                             <th class="py-3 px-2.5 w-28 text-center">Kehadiran</th>
-                            <th class="py-3 px-3 w-64 text-center bg-slate-200/50">Aksi Presentasi</th>
+                            <th class="py-3 px-3 w-64 text-center bg-slate-200/60">Aksi Presentasi</th>
                         </tr>
                     </thead>
                     <tbody id="operatorTableBody" class="divide-y divide-slate-100">
@@ -544,11 +545,9 @@
                                 ${isPresented && !isBest ? '<span class="px-1.5 py-0.2 rounded text-[9px] bg-slate-200 text-slate-600 font-normal no-underline">Selesai</span>' : ''}
                             </div>
                         </td>
-                        <td class="py-3 px-3">
-                            <div class="marquee-container" title="${safeJudul}">
-                                <span class="marquee-text ${isLongTitle ? 'is-overflow' : ''} ${judulClass}">
-                                    ${safeJudul}
-                                </span>
+                        <td class="py-3 px-3 max-w-xs md:max-w-sm">
+                            <div class="font-medium text-slate-800 line-clamp-2 ${judulClass}" title="${safeJudul}">
+                                ${safeJudul}
                             </div>
                         </td>
                         <td class="py-3 px-2.5 text-center">${tipeHtml}</td>
