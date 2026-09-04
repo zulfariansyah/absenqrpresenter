@@ -567,7 +567,7 @@
 
                     <!-- Table Content -->
                     <div class="overflow-x-auto flex-1">
-                        <table class="w-full text-left text-xs border-collapse">
+                        <table class="w-full text-left text-xs border-collapse min-w-[1300px]">
                             <thead class="bg-slate-100/90 text-slate-700 font-bold uppercase tracking-wider border-b border-slate-200 select-none">
                                 <tr>
                                     <th class="py-3 px-3 w-10 text-center">
@@ -598,7 +598,7 @@
                                             <i id="partSortIcon_nama_lengkap" data-lucide="arrow-up-down" class="w-3 h-3 text-slate-400"></i>
                                         </div>
                                     </th>
-                                    <th class="py-3 px-3 cursor-pointer hover:bg-slate-200/70 transition" onclick="sortPartData('judul_presentasi')" title="Klik untuk mengurutkan">
+                                    <th class="py-3 px-3 cursor-pointer hover:bg-slate-200/70 transition min-w-[360px] lg:min-w-[440px]" onclick="sortPartData('judul_presentasi')" title="Klik untuk mengurutkan">
                                         <div class="flex items-center gap-1">
                                             <span>Judul Presentasi</span>
                                             <i id="partSortIcon_judul_presentasi" data-lucide="arrow-up-down" class="w-3 h-3 text-slate-400"></i>
@@ -2340,14 +2340,14 @@
                         const fullSlideUrl = (safeSlide.startsWith('http://') || safeSlide.startsWith('https://')) ? safeSlide : `https://${safeSlide}`;
                         judulDisplayHtml = `
                             <a href="${escapeHtml(fullSlideUrl)}" target="_blank" rel="noopener noreferrer"
-                               class="${judulClass} hover:text-blue-600 hover:underline inline-flex items-center gap-1 group/slide leading-snug line-clamp-2"
+                               class="${judulClass} hover:text-blue-600 hover:underline inline-flex items-center gap-1.5 group/slide leading-snug"
                                title="Buka Slide Presentasi (${escapeHtml(fullSlideUrl)})">
                                 <span>${safeJudul}</span>
                                 <i data-lucide="external-link" class="w-3.5 h-3.5 shrink-0 text-blue-500 opacity-70 group-hover/slide:opacity-100"></i>
                             </a>
                         `;
                     } else {
-                        judulDisplayHtml = `<div class="${judulClass} line-clamp-2" title="${safeJudul}">${safeJudul}</div>`;
+                        judulDisplayHtml = `<div class="${judulClass} leading-snug" title="${safeJudul}">${safeJudul}</div>`;
                     }
 
                     html += `
@@ -2371,7 +2371,7 @@
                                     ${isPresented && !isBest ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-slate-200 text-slate-600 font-normal no-underline">Sudah Presentasi</span>' : ''}
                                 </div>
                             </td>
-                            <td class="py-3 px-3 max-w-xs">
+                            <td class="py-3 px-3 min-w-[360px] lg:min-w-[440px]">
                                 ${judulDisplayHtml}
                             </td>
                             <td class="py-3 px-3">
