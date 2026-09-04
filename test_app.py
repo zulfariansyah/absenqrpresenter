@@ -800,6 +800,69 @@ class SeminarAttendanceSystemTestCase(unittest.TestCase):
         self.assertIn(qr1, qr_list_semua)
         self.assertIn(qr2, qr_list_semua)
 
+    def test_23_presentation_tipe_and_filter(self):
+        """Uji penambahan judul dengan tipe Offline/Online, filtering tipe, dan update tipe"""
+        self.login_admin()
+
+        # 1. Tambah judul Offline dan Online
+        r_off = self.app.post('/api/admin/presentations', json={
+            'judul': 'Paper Offline Riset Biomedis',
+            'ruangan': 'Ruang 101',
+            'tipe': 'Offline'
+        })
+        self.assertEqual(r_off.status_code, 200)
+        pres_off = json.loads(r_off.data)['data']
+        self.assertEqual(pres_off['tipe'], 'Offline')
+
+        r_on = self.app.post('/api/admin/presentations', json={
+            'judul': 'Paper Online Virtual AI',
+            'ruangan': 'Online Room',
+            'tipe': 'Online'
+        })
+        self.assertEqual(r_on.status_code, 200)
+        pres_on = json.loads(r_on.data)['data']
+        self.assertEqual(pres_on['tipe'], 'Online')
+
+        # 2. Ambil semua judul
+        res_all = self.app.get('/api/admin/presentations')
+        self.assertEqual(res_all.status_code, 200)
+        all_items = json.loads(res_all.data)['data']
+        self.assertTrue(any(p['judul'] == 'Paper Offline Riset Biomedis' and p['tipe'] == 'Offline' for p in all_items))
+        self.assertTrue(any(p['judul'] == 'Paper Online Virtual AI' and p['tipe'] == 'Online' for p in all_items))
+
+        # 3. Filter tipe=Online
+        res_filter_on = self.app.get('/api/admin/presentations?tipe=Online')
+        self.assertEqual(res_filter_on.status_code, 200)
+        items_on = json.loads(res_filter_on.data)['data']
+        self.assertTrue(all(p['tipe'] == 'Online' for p in items_on))
+        self.assertTrue(any(p['judul'] == 'Paper Online Virtual AI' for p in items_on))
+        self.assertFalse(any(p['judul'] == 'Paper Offline Riset Biomedis' for p in items_on))
+
+        # 4. Filter tipe=Offline
+        res_filter_off = self.app.get('/api/admin/presentations?tipe=Offline')
+        self.assertEqual(res_filter_off.status_code, 200)
+        items_off = json.loads(res_filter_off.data)['data']
+        self.assertTrue(all(p['tipe'] == 'Offline' for p in items_off))
+        self.assertTrue(any(p['judul'] == 'Paper Offline Riset Biomedis' for p in items_off))
+        self.assertFalse(any(p['judul'] == 'Paper Online Virtual AI' for p in items_off))
+
+        # 5. Update judul dari Offline ke Online
+        r_up = self.app.post(f'/api/admin/presentations/{pres_off["id"]}', json={
+            'judul': 'Paper Offline Riset Biomedis (Updated)',
+            'ruangan': 'Ruang 102',
+            'tipe': 'Online'
+        })
+        self.assertEqual(r_up.status_code, 200)
+        updated_pres = database.get_presentation_by_id(pres_off['id'])
+        self.assertEqual(updated_pres['tipe'], 'Online')
+        self.assertEqual(updated_pres['judul'], 'Paper Offline Riset Biomedis (Updated)')
+
+        # 6. Public endpoint memuat tipe
+        res_pub = self.app.get('/api/presentations/public')
+        self.assertEqual(res_pub.status_code, 200)
+        pub_items = json.loads(res_pub.data)['data']
+        self.assertTrue(any(p['id'] == pres_on['id'] and p['tipe'] == 'Online' for p in pub_items))
+
 if __name__ == '__main__':
     unittest.main()
 

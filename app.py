@@ -870,7 +870,8 @@ def api_get_presentations():
     """Mengambil seluruh data judul presentasi, daftar ruangan, dan statistik"""
     search = request.args.get('search')
     ruangan = request.args.get('ruangan')
-    items = database.get_all_presentations(search=search, ruangan=ruangan)
+    tipe = request.args.get('tipe')
+    items = database.get_all_presentations(search=search, ruangan=ruangan, tipe=tipe)
     ruangan_list = database.get_distinct_ruangan()
     stats = database.get_presentation_stats()
     return jsonify({
@@ -887,10 +888,11 @@ def api_add_presentation():
     data = request.get_json() or {}
     judul = data.get('judul', '').strip()
     ruangan = data.get('ruangan', '-').strip()
+    tipe = data.get('tipe', 'Offline').strip()
     if not judul:
         return jsonify({'success': False, 'message': 'Judul presentasi wajib diisi!'}), 400
         
-    pres = database.add_presentation(judul, ruangan)
+    pres = database.add_presentation(judul, ruangan, tipe=tipe)
     return jsonify({
         'success': True,
         'message': 'Judul presentasi berhasil ditambahkan!',
@@ -900,14 +902,15 @@ def api_add_presentation():
 @presenter_route('/api/admin/presentations/<int:pres_id>', methods=['PUT', 'POST'])
 @admin_required
 def api_update_presentation(pres_id):
-    """Mengubah data judul presentasi dan ruangan"""
+    """Mengubah data judul presentasi, ruangan, dan tipe"""
     data = request.get_json() or {}
     judul = data.get('judul', '').strip()
     ruangan = data.get('ruangan', '-').strip()
+    tipe = data.get('tipe', 'Offline').strip()
     if not judul:
         return jsonify({'success': False, 'message': 'Judul presentasi wajib diisi!'}), 400
         
-    success = database.update_presentation(pres_id, judul, ruangan)
+    success = database.update_presentation(pres_id, judul, ruangan, tipe=tipe)
     if success:
         return jsonify({'success': True, 'message': 'Judul presentasi berhasil diperbarui!'})
     return jsonify({'success': False, 'message': 'Judul presentasi tidak ditemukan atau gagal diperbarui.'}), 404
@@ -1007,6 +1010,7 @@ def api_import_presentations_csv():
         first_row = [c.lower().strip() for c in rows[0]]
         judul_idx = -1
         ruang_idx = -1
+        tipe_idx = -1
         
         # Cari indeks kolom berdasarkan nama header di baris pertama
         for idx, col in enumerate(first_row):
@@ -1016,12 +1020,24 @@ def api_import_presentations_csv():
             elif any(k in col for k in ['ruang', 'ruangan', 'room', 'lokasi', 'tempat', 'kelas', 'sesi', 'link', 'zoom', 'auditorium', 'hall', 'lab']):
                 if ruang_idx == -1:
                     ruang_idx = idx
+            elif any(k in col for k in ['tipe', 'type', 'mode', 'format', 'metode', 'kehadiran']):
+                if tipe_idx == -1:
+                    tipe_idx = idx
 
         # Jika header tidak terdeteksi via keyword, tentukan mapping default berdasarkan jumlah kolom:
         if judul_idx == -1:
-            if len(first_row) >= 3 and ('no' in first_row[0] or first_row[0].isdigit() or '#' in first_row[0]):
+            if len(first_row) >= 4 and ('no' in first_row[0] or first_row[0].isdigit() or '#' in first_row[0]):
                 judul_idx = 1
                 ruang_idx = 2
+                tipe_idx = 3
+            elif len(first_row) >= 3 and ('no' in first_row[0] or first_row[0].isdigit() or '#' in first_row[0]):
+                judul_idx = 1
+                ruang_idx = 2
+            elif len(first_row) >= 3:
+                # Kolom 0 = judul, kolom 1 = ruangan, kolom 2 = tipe
+                judul_idx = 0
+                ruang_idx = 1
+                tipe_idx = 2
             elif len(first_row) >= 2:
                 # Kolom 0 = judul, kolom 1 = ruangan
                 judul_idx = 0
@@ -1042,6 +1058,8 @@ def api_import_presentations_csv():
             
             judul = row[judul_idx].strip() if (judul_idx != -1 and judul_idx < len(row)) else ''
             ruangan = row[ruang_idx].strip() if (ruang_idx != -1 and ruang_idx < len(row)) else '-'
+            raw_tipe = row[tipe_idx].strip() if (tipe_idx != -1 and tipe_idx < len(row)) else 'Offline'
+            tipe = 'Online' if raw_tipe.lower() == 'online' else 'Offline'
             
             # Pengaman tambahan: lewati jika baris berisi nama header duplikat
             if judul.lower() in ['judul', 'judul presentasi', 'judul paper', 'title', 'paper title', 'no', 'nomor']:
@@ -1051,7 +1069,7 @@ def api_import_presentations_csv():
                 skipped_count += 1
                 continue
                 
-            database.add_presentation(judul, ruangan or '-')
+            database.add_presentation(judul, ruangan or '-', tipe=tipe)
             inserted_count += 1
             
         return jsonify({

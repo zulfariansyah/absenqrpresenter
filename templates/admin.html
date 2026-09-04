@@ -729,6 +729,12 @@
                             <option value="Semua">Semua Ruangan</option>
                         </select>
 
+                        <select id="presFilterTipe" class="px-2.5 py-1.5 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 bg-white">
+                            <option value="Semua">Semua Tipe</option>
+                            <option value="Offline">Offline</option>
+                            <option value="Online">Online</option>
+                        </select>
+
                         <button onclick="loadPresentationsAdmin()" class="p-1.5 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-600 transition" title="Muat Ulang Judul">
                             <i data-lucide="rotate-cw" class="w-4 h-4"></i>
                         </button>
@@ -773,13 +779,19 @@
                                         <i id="presSortIcon_judul" data-lucide="arrow-up-down" class="w-3 h-3 text-slate-400"></i>
                                     </div>
                                 </th>
-                                <th class="py-3 px-4 w-40 cursor-pointer hover:bg-slate-200/70 transition" onclick="sortPresData('ruangan')" title="Klik untuk mengurutkan">
+                                <th class="py-3 px-4 w-36 cursor-pointer hover:bg-slate-200/70 transition" onclick="sortPresData('ruangan')" title="Klik untuk mengurutkan">
                                     <div class="flex items-center gap-1">
                                         <span>Ruangan</span>
                                         <i id="presSortIcon_ruangan" data-lucide="arrow-up-down" class="w-3 h-3 text-slate-400"></i>
                                     </div>
                                 </th>
-                                <th class="py-3 px-4 w-64 cursor-pointer hover:bg-slate-200/70 transition" onclick="sortPresData('is_taken')" title="Klik untuk mengurutkan">
+                                <th class="py-3 px-3 w-28 cursor-pointer hover:bg-slate-200/70 transition" onclick="sortPresData('tipe')" title="Klik untuk mengurutkan">
+                                    <div class="flex items-center gap-1">
+                                        <span>Tipe</span>
+                                        <i id="presSortIcon_tipe" data-lucide="arrow-up-down" class="w-3 h-3 text-slate-400"></i>
+                                    </div>
+                                </th>
+                                <th class="py-3 px-4 w-60 cursor-pointer hover:bg-slate-200/70 transition" onclick="sortPresData('is_taken')" title="Klik untuk mengurutkan">
                                     <div class="flex items-center gap-1">
                                         <span>Status Presenter</span>
                                         <i id="presSortIcon_is_taken" data-lucide="arrow-up-down" class="w-3 h-3 text-slate-400"></i>
@@ -790,7 +802,7 @@
                         </thead>
                         <tbody id="presentationsTableBody" class="divide-y divide-slate-200">
                             <tr>
-                                <td colspan="6" class="text-center py-12 text-slate-400">
+                                <td colspan="7" class="text-center py-12 text-slate-400">
                                     <i data-lucide="loader-2" class="w-6 h-6 animate-spin mx-auto mb-2 text-blue-600"></i>
                                     Memuat daftar judul...
                                 </td>
@@ -1122,6 +1134,15 @@
                     <input type="text" id="modalPresRuangan" placeholder="Contoh: Ruang A / Lab 1 / Aud 2"
                         class="w-full px-4 py-2 rounded-xl border border-slate-300 text-slate-800 text-sm focus:ring-2 focus:ring-blue-500">
                     <p class="text-[11px] text-slate-400 mt-0.5">Opsional. Biarkan kosong atau isi dengan nama ruangan presentasi.</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                        Tipe Presentasi <span class="text-rose-500">*</span>
+                    </label>
+                    <select id="modalPresTipe" required class="w-full px-4 py-2 rounded-xl border border-slate-300 text-slate-800 text-sm focus:ring-2 focus:ring-blue-500 bg-white">
+                        <option value="Offline">Offline (Tatap Muka di Ruangan)</option>
+                        <option value="Online">Online (Virtual / Video YouTube)</option>
+                    </select>
                 </div>
 
                 <div class="flex gap-2 pt-3 border-t border-slate-100">
@@ -2674,7 +2695,7 @@
 
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="6" class="text-center py-10 text-slate-400">
+                    <td colspan="7" class="text-center py-10 text-slate-400">
                         <i data-lucide="loader-2" class="w-6 h-6 animate-spin mx-auto mb-2 text-blue-600"></i>
                         Memuat data judul presentasi...
                     </td>
@@ -2697,7 +2718,7 @@
                 } else {
                     tbody.innerHTML = `
                         <tr>
-                            <td colspan="6" class="text-center py-10 text-rose-500 font-medium">
+                            <td colspan="7" class="text-center py-10 text-rose-500 font-medium">
                                 <i data-lucide="alert-circle" class="w-6 h-6 mx-auto mb-2 text-rose-500"></i>
                                 Gagal memuat data judul: ${json.message || 'Respons server tidak valid'}
                             </td>
@@ -2709,7 +2730,7 @@
                 console.error('Error loading presentations admin', e);
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="6" class="text-center py-10 text-rose-500 font-medium">
+                        <td colspan="7" class="text-center py-10 text-rose-500 font-medium">
                             <i data-lucide="wifi-off" class="w-6 h-6 mx-auto mb-2 text-rose-500"></i>
                             Gagal menghubungi server data judul.
                         </td>
@@ -2725,16 +2746,20 @@
 
             const search = (document.getElementById('presSearchInput')?.value || '').toLowerCase();
             const roomFilter = document.getElementById('presFilterRuangan')?.value || 'Semua';
+            const typeFilter = document.getElementById('presFilterTipe')?.value || 'Semua';
 
             let filtered = currentPresentationsList.filter(item => {
+                const itemType = item.tipe || 'Offline';
                 const matchRoom = (roomFilter === 'Semua' || item.ruangan === roomFilter);
+                const matchType = (typeFilter === 'Semua' || itemType === typeFilter);
                 const matchSearch = (!search || 
                     item.judul.toLowerCase().includes(search) || 
                     (item.ruangan && item.ruangan.toLowerCase().includes(search)) ||
+                    itemType.toLowerCase().includes(search) ||
                     (item.presenter_name && item.presenter_name.toLowerCase().includes(search)) ||
                     (item.presenter_nim && item.presenter_nim.toLowerCase().includes(search))
                 );
-                return matchRoom && matchSearch;
+                return matchRoom && matchType && matchSearch;
             });
 
             // Client-side column sorting
@@ -2750,6 +2775,9 @@
                     valA = a.is_taken ? 1 : 0;
                     valB = b.is_taken ? 1 : 0;
                     return presSortDir === 'asc' ? valA - valB : valB - valA;
+                } else if (presSortCol === 'tipe') {
+                    valA = (a.tipe || 'Offline').toLowerCase();
+                    valB = (b.tipe || 'Offline').toLowerCase();
                 } else {
                     valA = (a[presSortCol] || '').toString().toLowerCase();
                     valB = (b[presSortCol] || '').toString().toLowerCase();
@@ -2765,7 +2793,7 @@
             if (filtered.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="6" class="text-center py-12 text-slate-400">
+                        <td colspan="7" class="text-center py-12 text-slate-400">
                             <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 text-slate-300"></i>
                             <p class="font-medium text-slate-600">Belum ada judul presentasi</p>
                             <p class="text-[11px] text-slate-400 mt-0.5">Gunakan tombol "Tambah Judul" atau "Impor CSV Judul" di atas.</p>
@@ -2778,6 +2806,11 @@
                     const isChecked = selectedPresIds.has(item.id);
                     const safeJudul = escapeHtml(item.judul);
                     const safeRuang = escapeHtml(item.ruangan || '-');
+                    const presTipe = item.tipe || 'Offline';
+                    const isOnline = presTipe === 'Online';
+                    const tipeBadge = isOnline ? 
+                        `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 font-bold text-[11px]"><i data-lucide="video" class="w-3 h-3 text-rose-500"></i> Online</span>` :
+                        `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200 font-bold text-[11px]"><i data-lucide="map-pin" class="w-3 h-3 text-slate-500"></i> Offline</span>`;
                     
                     let statusBadge = '';
                     if (item.is_taken) {
@@ -2813,10 +2846,11 @@
                                     ${safeRuang}
                                 </span>
                             </td>
+                            <td class="py-3 px-3">${tipeBadge}</td>
                             <td class="py-3 px-4">${statusBadge}</td>
                             <td class="py-3 px-4 text-center">
                                 <div class="flex items-center justify-center gap-1.5">
-                                    <button onclick="openEditPresentationModal(${item.id}, '${encodeURIComponent(item.judul)}', '${encodeURIComponent(item.ruangan || '')}')"
+                                    <button onclick="openEditPresentationModal(${item.id}, '${encodeURIComponent(item.judul)}', '${encodeURIComponent(item.ruangan || '')}', '${presTipe}')"
                                         class="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition" title="Edit Judul & Ruangan">
                                         <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
                                     </button>
@@ -2840,15 +2874,17 @@
             document.getElementById('modalPresId').value = '';
             document.getElementById('modalPresJudul').value = '';
             document.getElementById('modalPresRuangan').value = '';
+            document.getElementById('modalPresTipe').value = 'Offline';
             document.getElementById('presentationModal').classList.remove('hidden');
             lucide.createIcons();
         }
 
-        function openEditPresentationModal(id, encodedJudul, encodedRuangan) {
+        function openEditPresentationModal(id, encodedJudul, encodedRuangan, tipe = 'Offline') {
             document.getElementById('presentationModalTitle').textContent = 'Edit Judul & Ruangan Presentasi';
             document.getElementById('modalPresId').value = id;
             document.getElementById('modalPresJudul').value = decodeURIComponent(encodedJudul);
             document.getElementById('modalPresRuangan').value = decodeURIComponent(encodedRuangan);
+            document.getElementById('modalPresTipe').value = tipe || 'Offline';
             document.getElementById('presentationModal').classList.remove('hidden');
             lucide.createIcons();
         }
@@ -2864,6 +2900,7 @@
                 const id = document.getElementById('modalPresId').value;
                 const judul = document.getElementById('modalPresJudul').value.trim();
                 const ruangan = document.getElementById('modalPresRuangan').value.trim();
+                const tipe = document.getElementById('modalPresTipe').value;
 
                 if (!judul) {
                     Swal.fire({ icon: 'warning', title: 'Judul Wajib Diisi', text: 'Silakan isi teks judul presentasi!', confirmButtonColor: '#2563eb' });
@@ -2879,7 +2916,7 @@
                     const res = await fetch(url, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ judul, ruangan })
+                        body: JSON.stringify({ judul, ruangan, tipe })
                     });
                     const json = await res.json();
 
@@ -3702,6 +3739,13 @@
         const presFilterRuangan = document.getElementById('presFilterRuangan');
         if (presFilterRuangan) {
             presFilterRuangan.addEventListener('change', () => {
+                renderPresentationsTable();
+            });
+        }
+
+        const presFilterTipe = document.getElementById('presFilterTipe');
+        if (presFilterTipe) {
+            presFilterTipe.addEventListener('change', () => {
                 renderPresentationsTable();
             });
         }
