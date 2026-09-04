@@ -6,8 +6,9 @@ from app import app
 
 class SeminarAttendanceSystemTestCase(unittest.TestCase):
     def setUp(self):
-        # Gunakan database sementara untuk pengujian
-        self.test_db = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_seminar.db")
+        # Gunakan database unik untuk setiap pengujian
+        import uuid
+        self.test_db = os.path.join(os.path.dirname(os.path.abspath(__file__)), f"test_seminar_{uuid.uuid4().hex[:8]}.db")
         database.DB_PATH = self.test_db
         database.init_db()
         self.app = app.test_client()
@@ -16,8 +17,13 @@ class SeminarAttendanceSystemTestCase(unittest.TestCase):
         app_module.registration_history.clear()
 
     def tearDown(self):
-        if os.path.exists(self.test_db):
-            os.remove(self.test_db)
+        for ext in ['', '-wal', '-shm']:
+            f = f"{self.test_db}{ext}"
+            if os.path.exists(f):
+                try:
+                    os.remove(f)
+                except OSError:
+                    pass
 
     def login_admin(self, username='admin', password='admin123'):
         return self.app.post('/api/login', json={'username': username, 'password': password})
@@ -897,6 +903,74 @@ class SeminarAttendanceSystemTestCase(unittest.TestCase):
         items_bm2 = json.loads(res_bm2.data)['data']
         self.assertEqual(len(items_bm2), 1)
         self.assertEqual(items_bm2[0]['id'], p3['id'])
+
+    def test_24_link_slide_and_clickable_titles(self):
+        """Uji fitur input link slide presentasi, edit via admin, pencarian, dan export CSV"""
+        self.login_admin()
+
+        # 1. Buat judul presentasi
+        p_res = self.app.post('/api/admin/presentations', json={
+            'judul': 'Penerapan AI pada Diagnosa Medis',
+            'ruangan': 'Ruang 201'
+        })
+        self.assertEqual(p_res.status_code, 200)
+        pres_id = json.loads(p_res.data)['data']['id']
+
+        # 2. Pendaftaran dengan link slide (Google Drive / Canva)
+        slide_url = 'https://drive.google.com/file/d/12345ABCDE/view?usp=sharing'
+        reg_res = self.app.post('/api/register', json={
+            'nim_nip': '2300998877',
+            'nama_lengkap': 'Dr. Haryanto',
+            'no_hp': '081288887777',
+            'institusi': 'Universitas Airlangga',
+            'pekerjaan': 'Dosen',
+            'presentation_id': pres_id,
+            'tipe_kehadiran': 'Offline',
+            'link_slide': slide_url
+        })
+        self.assertEqual(reg_res.status_code, 200)
+        p_data = json.loads(reg_res.data)['data']
+        self.assertEqual(p_data['link_slide'], slide_url)
+
+        part_id = p_data['id']
+
+        # 3. Ambil data presenter dari API admin
+        res_list = self.app.get('/api/participants')
+        self.assertEqual(res_list.status_code, 200)
+        all_parts = json.loads(res_list.data)['data']
+        match = [x for x in all_parts if x['id'] == part_id][0]
+        self.assertEqual(match['link_slide'], slide_url)
+
+        # 4. Edit link slide via Admin API
+        new_slide_url = 'https://www.canva.com/design/DAFxxxx/view'
+        edit_res = self.app.post(f'/api/participant/{part_id}/edit', json={
+            'nim_nip': '2300998877',
+            'nama_lengkap': 'Dr. Haryanto',
+            'judul_presentasi': 'Penerapan AI pada Diagnosa Medis',
+            'ruangan': 'Ruang 201',
+            'no_hp': '081288887777',
+            'institusi': 'Universitas Airlangga',
+            'pekerjaan': 'Dosen',
+            'tipe_kehadiran': 'Offline',
+            'link_slide': new_slide_url
+        })
+        self.assertEqual(edit_res.status_code, 200)
+        updated_part = json.loads(edit_res.data)['data']
+        self.assertEqual(updated_part['link_slide'], new_slide_url)
+
+        # 5. Cek tiket digital publik
+        qr = p_data['qr_code']
+        ticket_res = self.app.get(f'/ticket/{qr}')
+        self.assertEqual(ticket_res.status_code, 200)
+        ticket_html = ticket_res.data.decode('utf-8')
+        self.assertIn(new_slide_url, ticket_html)
+
+        # 6. Cek Export CSV mengandung kolom Link Slide Presentasi dan nilainya
+        csv_res = self.app.get('/api/export-csv?status=semua')
+        self.assertEqual(csv_res.status_code, 200)
+        csv_text = csv_res.data.decode('utf-8-sig')
+        self.assertIn('Link Slide Presentasi', csv_text)
+        self.assertIn(new_slide_url, csv_text)
 
 if __name__ == '__main__':
     unittest.main()

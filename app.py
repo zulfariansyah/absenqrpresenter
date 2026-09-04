@@ -423,6 +423,7 @@ def api_register():
     raw_pekerjaan = data.get('pekerjaan', '').strip()
     raw_tipe = data.get('tipe_kehadiran', 'Offline').strip()
     raw_youtube = data.get('link_youtube', '').strip()
+    raw_slide = data.get('link_slide', '').strip()
     raw_pres_id = data.get('presentation_id')
     
     # 3. Validasi Keberadaan Input
@@ -500,6 +501,7 @@ def api_register():
     institusi = html.escape(raw_institusi)
     pekerjaan = html.escape(raw_pekerjaan)
     link_youtube = html.escape(raw_youtube) if raw_youtube else ''
+    link_slide = html.escape(raw_slide) if raw_slide else ''
 
     # 6. Deteksi Duplikasi Nomor Identitas
     existing = database.get_participant_by_nim(nim_nip)
@@ -520,7 +522,8 @@ def api_register():
             pekerjaan=pekerjaan,
             presentation_id=presentation_id,
             tipe_kehadiran=tipe_kehadiran,
-            link_youtube=link_youtube
+            link_youtube=link_youtube,
+            link_slide=link_slide
         )
         return jsonify({
             'success': True,
@@ -1099,7 +1102,7 @@ def export_csv():
     
     writer.writerow([
         'No', 'Kode QR', 'No. Identitas (NIM/NIP/NIDN/NUPTK)', 'Nama Lengkap', 
-        'Judul Presentasi', 'Ruangan', 'Tipe Kehadiran', 'Link Video YouTube',
+        'Judul Presentasi', 'Ruangan', 'Tipe Kehadiran', 'Link Video YouTube', 'Link Slide Presentasi',
         'No. HP / WA', 'Institusi', 'Pekerjaan', 'Status Presensi', 
         'Sudah Presentasi', 'Best Presenter', 'Waktu Pendaftaran', 'Waktu Hadir'
     ])
@@ -1117,6 +1120,7 @@ def export_csv():
             row.get('ruangan') or '-',
             row.get('tipe_kehadiran') or 'Offline',
             row.get('link_youtube') or '-',
+            row.get('link_slide') or '-',
             row['no_hp'] or '-',
             row['institusi'],
             row['pekerjaan'],
@@ -1186,6 +1190,7 @@ def import_csv():
             'ruangan': ['ruangan', 'ruang', 'room', 'lokasi', 'tempat'],
             'tipe_kehadiran': ['tipe', 'tipe kehadiran', 'kehadiran tipe', 'tipe_kehadiran', 'mode'],
             'link_youtube': ['link youtube', 'youtube', 'link video', 'video youtube', 'link_youtube', 'url youtube'],
+            'link_slide': ['link slide presentasi', 'link slide', 'slide presentasi', 'slide', 'canva', 'google drive', 'link_slide', 'url slide'],
             'no_hp': ['no. hp / wa', 'no hp / wa', 'no. hp', 'no hp', 'nomor hp', 'no telepon', 'telepon', 'whatsapp', 'no wa', 'phone', 'mobile', 'no_hp'],
             'institusi': ['institusi', 'instansi', 'universitas', 'kampus', 'perusahaan', 'institution'],
             'pekerjaan': ['pekerjaan', 'profesi', 'kategori', 'job', 'occupation'],
@@ -1219,6 +1224,7 @@ def import_csv():
             try:
                 tipe_kehadiran = 'Offline'
                 link_youtube = ''
+                link_slide = ''
                 if has_header and 'nim_nip' in header_map and 'nama_lengkap' in header_map:
                     qr_code = row[header_map['qr_code']] if 'qr_code' in header_map and header_map['qr_code'] < len(row) else ''
                     nim_nip = row[header_map['nim_nip']] if header_map['nim_nip'] < len(row) else ''
@@ -1227,6 +1233,7 @@ def import_csv():
                     ruangan = row[header_map['ruangan']] if 'ruangan' in header_map and header_map['ruangan'] < len(row) else '-'
                     tipe_kehadiran = row[header_map['tipe_kehadiran']] if 'tipe_kehadiran' in header_map and header_map['tipe_kehadiran'] < len(row) else 'Offline'
                     link_youtube = row[header_map['link_youtube']] if 'link_youtube' in header_map and header_map['link_youtube'] < len(row) else ''
+                    link_slide = row[header_map['link_slide']] if 'link_slide' in header_map and header_map['link_slide'] < len(row) else ''
                     no_hp = row[header_map['no_hp']] if 'no_hp' in header_map and header_map['no_hp'] < len(row) else ''
                     institusi = row[header_map['institusi']] if 'institusi' in header_map and header_map['institusi'] < len(row) else '-'
                     pekerjaan = row[header_map['pekerjaan']] if 'pekerjaan' in header_map and header_map['pekerjaan'] < len(row) else 'Lainnya'
@@ -1289,6 +1296,7 @@ def import_csv():
                 pekerjaan = html.escape((pekerjaan or 'Lainnya')[:50])
                 tipe_kehadiran = 'Online' if 'online' in str(tipe_kehadiran).lower() else 'Offline'
                 link_youtube = html.escape(link_youtube[:255]) if link_youtube else ''
+                link_slide = html.escape(link_slide[:255]) if link_slide else ''
 
                 res = database.upsert_participant_from_csv(
                     qr_code=qr_code,
@@ -1302,6 +1310,7 @@ def import_csv():
                     status=status,
                     tipe_kehadiran=tipe_kehadiran,
                     link_youtube=link_youtube,
+                    link_slide=link_slide,
                     created_at=created_at,
                     attended_at=attended_at,
                     overwrite=overwrite

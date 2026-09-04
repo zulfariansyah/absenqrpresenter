@@ -44,6 +44,7 @@ def init_db():
             attended_at TEXT,
             tipe_kehadiran TEXT DEFAULT 'Offline',
             link_youtube TEXT DEFAULT '',
+            link_slide TEXT DEFAULT '',
             is_presented INTEGER DEFAULT 0,
             presented_at TEXT,
             is_best_presenter INTEGER DEFAULT 0,
@@ -72,6 +73,8 @@ def init_db():
         cursor.execute("ALTER TABLE participants ADD COLUMN tipe_kehadiran TEXT DEFAULT 'Offline'")
     if 'link_youtube' not in columns:
         cursor.execute("ALTER TABLE participants ADD COLUMN link_youtube TEXT DEFAULT ''")
+    if 'link_slide' not in columns:
+        cursor.execute("ALTER TABLE participants ADD COLUMN link_slide TEXT DEFAULT ''")
     if 'is_presented' not in columns:
         cursor.execute("ALTER TABLE participants ADD COLUMN is_presented INTEGER DEFAULT 0")
     if 'presented_at' not in columns:
@@ -551,7 +554,7 @@ def generate_unique_qr_code():
             conn.close()
             return code
 
-def register_participant(nim_nip, nama_lengkap, no_hp, institusi, pekerjaan, presentation_id=None, tipe_kehadiran='Offline', link_youtube=''):
+def register_participant(nim_nip, nama_lengkap, no_hp, institusi, pekerjaan, presentation_id=None, tipe_kehadiran='Offline', link_youtube='', link_slide=''):
     """
     Mendaftarkan presenter baru dengan status default 'pendaftar'.
     Jika presentation_id disertakan, dilakukan validasi bahwa judul tersebut masih tersedia.
@@ -584,9 +587,9 @@ def register_participant(nim_nip, nama_lengkap, no_hp, institusi, pekerjaan, pre
     created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
     cursor.execute("""
-        INSERT INTO participants (qr_code, nim_nip, nama_lengkap, no_hp, institusi, pekerjaan, presentation_id, judul_presentasi, ruangan, tipe_kehadiran, link_youtube, is_presented, is_best_presenter, status, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 'pendaftar', ?)
-    """, (qr_code, nim_nip.strip(), nama_lengkap.strip(), (no_hp or '').strip(), institusi.strip(), pekerjaan.strip(), presentation_id, judul_presentasi, ruangan, (tipe_kehadiran or 'Offline').strip(), (link_youtube or '').strip(), created_at))
+        INSERT INTO participants (qr_code, nim_nip, nama_lengkap, no_hp, institusi, pekerjaan, presentation_id, judul_presentasi, ruangan, tipe_kehadiran, link_youtube, link_slide, is_presented, is_best_presenter, status, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 'pendaftar', ?)
+    """, (qr_code, nim_nip.strip(), nama_lengkap.strip(), (no_hp or '').strip(), institusi.strip(), pekerjaan.strip(), presentation_id, judul_presentasi, ruangan, (tipe_kehadiran or 'Offline').strip(), (link_youtube or '').strip(), (link_slide or '').strip(), created_at))
     conn.commit()
     inserted_id = cursor.lastrowid
     
@@ -612,6 +615,7 @@ def update_participant(participant_id, data):
     pekerjaan = data.get('pekerjaan', existing['pekerjaan']).strip()
     tipe_kehadiran = data.get('tipe_kehadiran', existing['tipe_kehadiran'] or 'Offline').strip()
     link_youtube = data.get('link_youtube', existing['link_youtube'] or '').strip()
+    link_slide = data.get('link_slide', (existing['link_slide'] if 'link_slide' in existing.keys() else '') or '').strip()
     
     raw_pres_id = data.get('presentation_id')
     presentation_id = existing['presentation_id']
@@ -639,9 +643,9 @@ def update_participant(participant_id, data):
         UPDATE participants 
         SET nim_nip = ?, nama_lengkap = ?, no_hp = ?, institusi = ?, pekerjaan = ?, 
             presentation_id = ?, judul_presentasi = ?, ruangan = ?, 
-            tipe_kehadiran = ?, link_youtube = ?
+            tipe_kehadiran = ?, link_youtube = ?, link_slide = ?
         WHERE id = ?
-    """, (nim_nip, nama_lengkap, no_hp, institusi, pekerjaan, presentation_id, judul_presentasi, ruangan, tipe_kehadiran, link_youtube, participant_id))
+    """, (nim_nip, nama_lengkap, no_hp, institusi, pekerjaan, presentation_id, judul_presentasi, ruangan, tipe_kehadiran, link_youtube, link_slide, participant_id))
     conn.commit()
     
     cursor.execute("SELECT * FROM participants WHERE id = ?", (participant_id,))
@@ -716,7 +720,7 @@ def set_best_presenter(participant_id, is_best=None):
     conn.close()
     return {"success": True, "data": updated, "is_best_presenter": target_best}
 
-def upsert_participant_from_csv(qr_code, nim_nip, nama_lengkap, no_hp='', institusi='-', pekerjaan='Lainnya', judul_presentasi='', ruangan='-', presentation_id=None, status='pendaftar', created_at=None, attended_at=None, tipe_kehadiran='Offline', link_youtube='', is_presented=0, presented_at=None, is_best_presenter=0, overwrite=True):
+def upsert_participant_from_csv(qr_code, nim_nip, nama_lengkap, no_hp='', institusi='-', pekerjaan='Lainnya', judul_presentasi='', ruangan='-', presentation_id=None, status='pendaftar', created_at=None, attended_at=None, tipe_kehadiran='Offline', link_youtube='', link_slide='', is_presented=0, presented_at=None, is_best_presenter=0, overwrite=True):
     """
     Menyimpan atau memperbarui data peserta dari file CSV backup (pendaftar & peserta).
     Jika data sudah ada (berdasarkan qr_code atau nim_nip):
@@ -737,6 +741,7 @@ def upsert_participant_from_csv(qr_code, nim_nip, nama_lengkap, no_hp='', instit
     cleaned_ruangan = (ruangan or '-').strip()
     cleaned_tipe = (tipe_kehadiran or 'Offline').strip()
     cleaned_youtube = (link_youtube or '').strip()
+    cleaned_slide = (link_slide or '').strip()
     
     status_lower = (status or 'pendaftar').strip().lower()
     final_status = 'peserta' if ('peserta' in status_lower or 'hadir' in status_lower) and 'belum' not in status_lower else 'pendaftar'
@@ -767,9 +772,9 @@ def upsert_participant_from_csv(qr_code, nim_nip, nama_lengkap, no_hp='', instit
         if overwrite:
             cursor.execute("""
                 UPDATE participants 
-                SET qr_code = ?, nim_nip = ?, nama_lengkap = ?, no_hp = ?, institusi = ?, pekerjaan = ?, presentation_id = ?, judul_presentasi = ?, ruangan = ?, status = ?, created_at = ?, attended_at = ?, tipe_kehadiran = ?, link_youtube = ?, is_presented = ?, presented_at = ?, is_best_presenter = ?
+                SET qr_code = ?, nim_nip = ?, nama_lengkap = ?, no_hp = ?, institusi = ?, pekerjaan = ?, presentation_id = ?, judul_presentasi = ?, ruangan = ?, status = ?, created_at = ?, attended_at = ?, tipe_kehadiran = ?, link_youtube = ?, link_slide = ?, is_presented = ?, presented_at = ?, is_best_presenter = ?
                 WHERE id = ?
-            """, (qr_code, cleaned_nim, cleaned_nama, cleaned_hp, cleaned_inst, cleaned_job, presentation_id, cleaned_judul, cleaned_ruangan, final_status, final_created_at, final_attended_at, cleaned_tipe, cleaned_youtube, is_presented, presented_at, is_best_presenter, existing['id']))
+            """, (qr_code, cleaned_nim, cleaned_nama, cleaned_hp, cleaned_inst, cleaned_job, presentation_id, cleaned_judul, cleaned_ruangan, final_status, final_created_at, final_attended_at, cleaned_tipe, cleaned_youtube, cleaned_slide, is_presented, presented_at, is_best_presenter, existing['id']))
             conn.commit()
             conn.close()
             return 'updated'
@@ -778,9 +783,9 @@ def upsert_participant_from_csv(qr_code, nim_nip, nama_lengkap, no_hp='', instit
             return 'skipped'
     else:
         cursor.execute("""
-            INSERT INTO participants (qr_code, nim_nip, nama_lengkap, no_hp, institusi, pekerjaan, presentation_id, judul_presentasi, ruangan, status, created_at, attended_at, tipe_kehadiran, link_youtube, is_presented, presented_at, is_best_presenter)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (qr_code, cleaned_nim, cleaned_nama, cleaned_hp, cleaned_inst, cleaned_job, presentation_id, cleaned_judul, cleaned_ruangan, final_status, final_created_at, final_attended_at, cleaned_tipe, cleaned_youtube, is_presented, presented_at, is_best_presenter))
+            INSERT INTO participants (qr_code, nim_nip, nama_lengkap, no_hp, institusi, pekerjaan, presentation_id, judul_presentasi, ruangan, status, created_at, attended_at, tipe_kehadiran, link_youtube, link_slide, is_presented, presented_at, is_best_presenter)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (qr_code, cleaned_nim, cleaned_nama, cleaned_hp, cleaned_inst, cleaned_job, presentation_id, cleaned_judul, cleaned_ruangan, final_status, final_created_at, final_attended_at, cleaned_tipe, cleaned_youtube, cleaned_slide, is_presented, presented_at, is_best_presenter))
         conn.commit()
         conn.close()
         return 'inserted'
@@ -951,8 +956,8 @@ def get_participants(status=None, search=None, pekerjaan=None, ruangan=None, bes
         
     if search:
         search_pattern = f"%{search.strip()}%"
-        query += " AND (nim_nip LIKE ? OR nama_lengkap LIKE ? OR no_hp LIKE ? OR institusi LIKE ? OR qr_code LIKE ? OR judul_presentasi LIKE ? OR ruangan LIKE ? OR link_youtube LIKE ?)"
-        params.extend([search_pattern, search_pattern, search_pattern, search_pattern, search_pattern, search_pattern, search_pattern, search_pattern])
+        query += " AND (nim_nip LIKE ? OR nama_lengkap LIKE ? OR no_hp LIKE ? OR institusi LIKE ? OR qr_code LIKE ? OR judul_presentasi LIKE ? OR ruangan LIKE ? OR link_youtube LIKE ? OR link_slide LIKE ?)"
+        params.extend([search_pattern, search_pattern, search_pattern, search_pattern, search_pattern, search_pattern, search_pattern, search_pattern, search_pattern])
         
     if status == 'peserta':
         query += " ORDER BY is_best_presenter DESC, is_presented ASC, attended_at DESC, id DESC"
