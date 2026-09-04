@@ -525,6 +525,15 @@
                                 <option value="Lainnya">Lainnya</option>
                             </select>
 
+                            <!-- Filter Status Presentasi (Khusus Tab Peserta Hadir) -->
+                            <div id="presentedFilterWrapper" class="hidden">
+                                <select id="filterPresented" onchange="loadParticipantsData()" class="px-2.5 py-1.5 text-xs rounded-xl border border-indigo-300 bg-indigo-50/80 text-indigo-950 font-semibold focus:ring-2 focus:ring-indigo-500">
+                                    <option value="Semua">Semua Status Presentasi</option>
+                                    <option value="1">Sudah Presentasi</option>
+                                    <option value="0">Belum Presentasi</option>
+                                </select>
+                            </div>
+
                             <!-- Best Presenter Filter (Active on Hadir Tab) -->
                             <div id="bestPresenterFilterWrapper" class="hidden">
                                 <label class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold cursor-pointer transition select-none">
@@ -1627,6 +1636,8 @@
             const exportBtnLabel = document.getElementById('exportBtnLabel');
             const bestFilterWrapper = document.getElementById('bestPresenterFilterWrapper');
             const bestFilterCb = document.getElementById('filterBestPresenter');
+            const presentedFilterWrapper = document.getElementById('presentedFilterWrapper');
+            const filterPresented = document.getElementById('filterPresented');
 
             if (subTab === 'pendaftar') {
                 tabPendaftarBtn.className = 'w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-left text-xs sm:text-sm font-bold transition-all bg-amber-50 text-amber-900 border border-amber-200 shadow-sm';
@@ -1638,6 +1649,8 @@
                 
                 if (bestFilterWrapper) bestFilterWrapper.classList.add('hidden');
                 if (bestFilterCb) bestFilterCb.checked = false;
+                if (presentedFilterWrapper) presentedFilterWrapper.classList.add('hidden');
+                if (filterPresented) filterPresented.value = 'Semua';
 
                 exportCurrentBtn.href = `${window.BASE_URL}/api/export-csv?status=pendaftar`;
                 exportBtnLabel.textContent = 'Export CSV Pendaftar';
@@ -1650,6 +1663,7 @@
                 colWaktuHeader.textContent = 'Waktu Hadir';
                 
                 if (bestFilterWrapper) bestFilterWrapper.classList.remove('hidden');
+                if (presentedFilterWrapper) presentedFilterWrapper.classList.remove('hidden');
 
                 exportCurrentBtn.href = `${window.BASE_URL}/api/export-csv?status=peserta`;
                 exportBtnLabel.textContent = 'Export CSV Presenter Hadir';
@@ -2121,6 +2135,7 @@
             const ruang = document.getElementById('filterRuangan')?.value || 'Semua';
             const tipe = document.getElementById('filterTipe')?.value || 'Semua';
             const isBestOnly = document.getElementById('filterBestPresenter')?.checked;
+            const isPresentedVal = document.getElementById('filterPresented')?.value;
 
             // Don't interrupt while user is actively typing in search
             if (isSilent && searchInput && document.activeElement === searchInput && search.length > 0) {
@@ -2137,8 +2152,13 @@
             if (tipe !== 'Semua') {
                 params.append('tipe_kehadiran', tipe);
             }
-            if (currentInfoSubTab === 'peserta' && isBestOnly) {
-                params.append('best_presenter', '1');
+            if (currentInfoSubTab === 'peserta') {
+                if (isBestOnly) {
+                    params.append('best_presenter', '1');
+                }
+                if (isPresentedVal && isPresentedVal !== 'Semua') {
+                    params.append('is_presented', isPresentedVal);
+                }
             }
 
             if (!isSilent) {

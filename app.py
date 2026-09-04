@@ -1073,7 +1073,8 @@ def export_csv():
     status_filter = request.args.get('status') # 'pendaftar', 'peserta', or all
     ruangan_filter = request.args.get('ruangan')
     best_filter = request.args.get('best_presenter') in ['1', 'true', 'True']
-    rows = database.get_participants(status=status_filter, ruangan=ruangan_filter, best_presenter_only=best_filter)
+    is_presented_filter = request.args.get('is_presented')
+    rows = database.get_participants(status=status_filter, ruangan=ruangan_filter, best_presenter_only=best_filter, is_presented=is_presented_filter)
     
     output = io.StringIO()
     # BOM untuk Excel agar encoding UTF-8 terbaca dengan rapi di Windows/Mac

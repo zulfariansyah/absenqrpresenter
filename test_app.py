@@ -743,6 +743,63 @@ class SeminarAttendanceSystemTestCase(unittest.TestCase):
         self.assertEqual(reset_fav.status_code, 200)
         self.assertEqual(json.loads(reset_fav.data)['settings']['event_favicon'], '')
 
+    def test_22_is_presented_filter(self):
+        """Uji filter is_presented pada API participants dan export CSV"""
+        self.login_admin()
+
+        # 1. Registrasi 2 peserta hadir
+        r1 = self.app.post('/api/register', json={
+            'nim_nip': '330101',
+            'nama_lengkap': 'Presenter Sudah Maju',
+            'no_hp': '081234567811',
+            'institusi': 'Unmul',
+            'pekerjaan': 'Dosen',
+            'judul_presentasi': 'Judul Maju',
+            'ruangan': 'Ruang 201'
+        })
+        qr1 = json.loads(r1.data)['data']['qr_code']
+        self.app.post('/api/scan', json={'qr_code': qr1})
+
+        r2 = self.app.post('/api/register', json={
+            'nim_nip': '330102',
+            'nama_lengkap': 'Presenter Belum Maju',
+            'no_hp': '081234567812',
+            'institusi': 'Unmul',
+            'pekerjaan': 'Dosen',
+            'judul_presentasi': 'Judul Belum',
+            'ruangan': 'Ruang 201'
+        })
+        qr2 = json.loads(r2.data)['data']['qr_code']
+        self.app.post('/api/scan', json={'qr_code': qr2})
+
+        p1 = database.get_participant_by_qr(qr1)
+        # Tandai p1 sudah presentasi
+        self.app.post(f'/api/operator/toggle-presented/{p1["id"]}')
+
+        # 2. Filter is_presented=1 (Sudah Presentasi)
+        res_sudah = self.app.get('/api/participants?status=peserta&is_presented=1')
+        self.assertEqual(res_sudah.status_code, 200)
+        data_sudah = json.loads(res_sudah.data)['data']
+        qr_list_sudah = [x['qr_code'] for x in data_sudah]
+        self.assertIn(qr1, qr_list_sudah)
+        self.assertNotIn(qr2, qr_list_sudah)
+
+        # 3. Filter is_presented=0 (Belum Presentasi)
+        res_belum = self.app.get('/api/participants?status=peserta&is_presented=0')
+        self.assertEqual(res_belum.status_code, 200)
+        data_belum = json.loads(res_belum.data)['data']
+        qr_list_belum = [x['qr_code'] for x in data_belum]
+        self.assertIn(qr2, qr_list_belum)
+        self.assertNotIn(qr1, qr_list_belum)
+
+        # 4. Filter is_presented=Semua
+        res_semua = self.app.get('/api/participants?status=peserta&is_presented=Semua')
+        self.assertEqual(res_semua.status_code, 200)
+        data_semua = json.loads(res_semua.data)['data']
+        qr_list_semua = [x['qr_code'] for x in data_semua]
+        self.assertIn(qr1, qr_list_semua)
+        self.assertIn(qr2, qr_list_semua)
+
 if __name__ == '__main__':
     unittest.main()
 

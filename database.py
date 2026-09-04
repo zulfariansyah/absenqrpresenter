@@ -914,7 +914,7 @@ def get_participants(status=None, search=None, pekerjaan=None, ruangan=None, bes
     if best_presenter_only:
         query += " AND is_best_presenter = 1"
         
-    if is_presented is not None and str(is_presented).strip() != '':
+    if is_presented is not None and str(is_presented).strip() not in ['', 'Semua', 'None', 'all']:
         query += " AND is_presented = ?"
         params.append(int(is_presented))
 
