@@ -41,9 +41,9 @@ fi
 echo "🚀 Menjalankan Aplikasi Absen Seminar di background (Port $PORT)..."
 
 if [ -f "$GUNICORN_BIN" ]; then
-    nohup "$GUNICORN_BIN" --no-control-socket --workers 3 --bind 0.0.0.0:$PORT --pid "$PID_FILE" wsgi:app >> "$LOG_FILE" 2>&1 &
+    nohup "$GUNICORN_BIN" --workers 3 --bind 0.0.0.0:$PORT --pid "$PID_FILE" wsgi:app >> "$LOG_FILE" 2>&1 &
 elif command -v gunicorn > /dev/null 2>&1; then
-    nohup gunicorn --no-control-socket --workers 3 --bind 0.0.0.0:$PORT --pid "$PID_FILE" wsgi:app >> "$LOG_FILE" 2>&1 &
+    nohup gunicorn --workers 3 --bind 0.0.0.0:$PORT --pid "$PID_FILE" wsgi:app >> "$LOG_FILE" 2>&1 &
 else
     # Fallback menjalankan app.py jika gunicorn tidak tersedia
     echo "⚠️  Menjalankan fallback dengan Python..."

@@ -203,6 +203,7 @@
                 }
 
                 try {
+                    const presenterName = document.getElementById('ticketNamaPresenter')?.textContent.trim() || 'Presenter';
                     const res = await fetch(qrImage.src);
                     const blob = await res.blob();
                     const file = new File([blob], filename, { type: 'image/png' });
