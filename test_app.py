@@ -201,11 +201,15 @@ class SeminarAttendanceSystemTestCase(unittest.TestCase):
         """Uji pengelolaan nama acara dan logo"""
         self.login_admin()
 
-        # Update event name
-        update_res = self.app.post('/api/settings', data={'event_name': 'Workshop AI Vision 2026'})
+        # Update event name and default timer
+        update_res = self.app.post('/api/settings', data={
+            'event_name': 'Workshop AI Vision 2026',
+            'default_timer_minutes': '15'
+        })
         self.assertEqual(update_res.status_code, 200)
         new_settings = json.loads(update_res.data)['settings']
         self.assertEqual(new_settings['event_name'], 'Workshop AI Vision 2026')
+        self.assertEqual(new_settings['default_timer_minutes'], '15')
 
         # Reset logo
         reset_res = self.app.post('/api/settings/reset-logo')

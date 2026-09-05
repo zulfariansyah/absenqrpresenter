@@ -120,7 +120,8 @@
                     <div class="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 bg-slate-100 rounded-xl border border-slate-200 text-xs" title="Durasi Timer Standar untuk Setiap Presenter di Ruangan Ini">
                         <i data-lucide="timer" class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600"></i>
                         <span class="font-semibold text-slate-700 text-[11px] sm:text-xs">Timer:</span>
-                        <input type="number" id="defaultTimerInput" min="1" max="120" value="10"
+                        <input type="number" id="defaultTimerInput" min="1" max="120"
+                            value="{{ event_settings.default_timer_minutes if event_settings and event_settings.default_timer_minutes else '10' }}"
                             class="w-12 sm:w-14 px-1.5 py-0.5 text-center font-bold font-mono text-xs rounded-lg border border-slate-300 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
                             onchange="saveDefaultTimerSetting(this.value)">
                         <span class="text-slate-500 font-medium text-[11px] sm:text-xs">Mnt</span>
@@ -316,18 +317,21 @@
         let allPresenters = [];
         let assignedRooms = "{{ assigned_rooms }}";
         let activeTimerPresenterId = null;
-        let timerDurationSeconds = 600; // default 10 minutes
-        let timerRemainingSeconds = 600;
+        const serverDefaultMins = parseInt("{{ event_settings.default_timer_minutes if event_settings and event_settings.default_timer_minutes else '10' }}") || 10;
+        let timerDurationSeconds = serverDefaultMins * 60;
+        let timerRemainingSeconds = timerDurationSeconds;
         let timerInterval = null;
         let isTimerRunning = false;
         let alarmAudioContext = null;
 
-        // Inisialisasi Default Timer dari LocalStorage jika ada
+        // Inisialisasi Default Timer dari LocalStorage jika ada override dari operator
         const savedTimer = localStorage.getItem('operator_default_timer_mins');
         if (savedTimer && !isNaN(savedTimer) && Number(savedTimer) > 0) {
             timerDurationSeconds = Number(savedTimer) * 60;
             timerRemainingSeconds = timerDurationSeconds;
             document.getElementById('defaultTimerInput').value = savedTimer;
+        } else {
+            document.getElementById('defaultTimerInput').value = serverDefaultMins;
         }
 
         function saveDefaultTimerSetting(mins) {

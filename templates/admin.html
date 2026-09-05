@@ -892,6 +892,24 @@
                                     💡 <em>Tautan / URL (https://...) yang Anda masukkan akan otomatis menjadi link aktif yang dapat diklik di form registrasi dan jendela tiket QR presenter.</em>
                                 </p>
                             </div>
+
+                            <!-- Waktu Default Timer Operator Ruangan -->
+                            <div class="p-4 rounded-2xl bg-amber-50/80 border border-amber-200 space-y-2">
+                                <label for="inputDefaultTimer" class="block text-sm font-bold text-amber-950 flex items-center gap-1.5">
+                                    <i data-lucide="timer" class="w-4 h-4 text-amber-600"></i>
+                                    <span>Waktu Default Timer Presentasi Operator (Menit)</span>
+                                </label>
+                                <div class="flex items-center gap-3">
+                                    <input type="number" id="inputDefaultTimer" name="default_timer_minutes" min="1" max="180"
+                                        value="{{ event_settings.default_timer_minutes if event_settings.default_timer_minutes else '10' }}"
+                                        placeholder="10"
+                                        class="w-28 px-3.5 py-2 rounded-xl border border-amber-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-slate-900 font-extrabold text-sm bg-white shadow-sm font-mono text-center">
+                                    <span class="text-xs font-bold text-amber-900">Menit per sesi presentasi</span>
+                                </div>
+                                <p class="text-xs text-amber-800 leading-relaxed">
+                                    Durasi ini akan otomatis menjadi nilai awal timer saat Operator Ruangan membuka dashboard. Operator tetap dapat mengubah atau menyesuaikan durasi ini kapan saja di console ruangan masing-masing.
+                                </p>
+                            </div>
                         </div>
 
                         <div class="space-y-5">

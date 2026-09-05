@@ -114,6 +114,7 @@ def init_db():
     cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('event_info', '')")
     cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('title_register', '')")
     cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('title_admin', '')")
+    cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('default_timer_minutes', '10')")
     
     # Inisialisasi User Admin & Operator Bawaan
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -316,6 +317,8 @@ def get_all_settings():
         settings['title_register'] = ''
     if 'title_admin' not in settings:
         settings['title_admin'] = ''
+    if 'default_timer_minutes' not in settings:
+        settings['default_timer_minutes'] = '10'
     return settings
 
 # ======================= PRESENTATION TITLES (JUDUL & RUANGAN) =======================

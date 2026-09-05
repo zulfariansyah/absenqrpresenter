@@ -734,6 +734,15 @@ def api_update_settings():
     event_info = request.form.get('event_info', '').strip()
     database.set_setting('event_info', event_info)
 
+    default_timer = request.form.get('default_timer_minutes', '').strip()
+    if default_timer:
+        try:
+            val = int(default_timer)
+            if val > 0:
+                database.set_setting('default_timer_minutes', str(val))
+        except ValueError:
+            pass
+
     # Periksa apakah ada file logo yang diunggah
     if 'event_logo' in request.files:
         file = request.files['event_logo']
