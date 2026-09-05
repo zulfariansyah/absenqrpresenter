@@ -81,7 +81,19 @@
         {% if request.script_root %}
         window.BASE_URL = "{{ request.script_root }}";
         {% else %}
-        window.BASE_URL = window.location.pathname.includes('presenter') ? '/absenpresenter' : '';
+        (function() {
+            const path = window.location.pathname;
+            if (path.includes('/absenqrpresenter')) {
+                window.BASE_URL = '/absenqrpresenter';
+            } else if (path.includes('/absenpresenter')) {
+                window.BASE_URL = '/absenpresenter';
+            } else if (path.includes('/apipresenter')) {
+                window.BASE_URL = '/apipresenter';
+            } else {
+                const match = path.match(/^(.*?)\/(admin|operator|ticket|api)/);
+                window.BASE_URL = (match && match[1]) ? match[1] : '';
+            }
+        })();
         {% endif %}
     </script>
     {% block extra_head %}{% endblock %}

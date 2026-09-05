@@ -197,7 +197,7 @@ def ticket(qr_code):
     return render_template('ticket.html', participant=participant, error=None)
 
 def presenter_route(rule, **options):
-    """Mendaftarkan route untuk path standar (/api/...), alias /apipresenter/..., dan subpath /absenpresenter/api/..."""
+    """Mendaftarkan route untuk path standar (/api/...), alias /apipresenter/..., /absenpresenter/..., dan /absenqrpresenter/..."""
     def decorator(f):
         endpoint = options.pop('endpoint', None)
         orig_endpoint = endpoint or f.__name__
@@ -207,10 +207,16 @@ def presenter_route(rule, **options):
             sub_rule = rule[5:]
             app.add_url_rule(f'/apipresenter/{sub_rule}', orig_endpoint + '_alias_apipres', f, **options)
             app.add_url_rule(f'/absenpresenter/api/{sub_rule}', orig_endpoint + '_alias_absenpres', f, **options)
+            app.add_url_rule(f'/absenqrpresenter/api/{sub_rule}', orig_endpoint + '_alias_absenqrpres', f, **options)
+            app.add_url_rule(f'/absenpresenter/{sub_rule}', orig_endpoint + '_alias_absenpres_root', f, **options)
+            app.add_url_rule(f'/absenqrpresenter/{sub_rule}', orig_endpoint + '_alias_absenqrpres_root', f, **options)
         elif rule.startswith('/api'):
             sub_rule = rule[4:]
             app.add_url_rule(f'/apipresenter{sub_rule}', orig_endpoint + '_alias_apipres', f, **options)
             app.add_url_rule(f'/absenpresenter/api{sub_rule}', orig_endpoint + '_alias_absenpres', f, **options)
+            app.add_url_rule(f'/absenqrpresenter/api{sub_rule}', orig_endpoint + '_alias_absenqrpres', f, **options)
+            app.add_url_rule(f'/absenpresenter{sub_rule}', orig_endpoint + '_alias_absenpres_root', f, **options)
+            app.add_url_rule(f'/absenqrpresenter{sub_rule}', orig_endpoint + '_alias_absenqrpres_root', f, **options)
         return f
     return decorator
 
@@ -1102,10 +1108,32 @@ def api_import_presentations_csv():
         return jsonify({'success': False, 'message': f'Gagal memproses file TSV / CSV judul: {str(e)}'}), 500
 
 @presenter_route('/api/export-csv')
+@presenter_route('/api/export-pendaftar-csv')
+@presenter_route('/api/export-hadir-csv')
+@presenter_route('/api/export-peserta-csv')
+@app.route('/export-csv')
+@app.route('/export-pendaftar-csv')
+@app.route('/export-hadir-csv')
+@app.route('/export-peserta-csv')
+@app.route('/absenpresenter/export-csv')
+@app.route('/absenpresenter/export-pendaftar-csv')
+@app.route('/absenpresenter/export-hadir-csv')
+@app.route('/absenpresenter/export-peserta-csv')
+@app.route('/absenqrpresenter/export-csv')
+@app.route('/absenqrpresenter/export-pendaftar-csv')
+@app.route('/absenqrpresenter/export-hadir-csv')
+@app.route('/absenqrpresenter/export-peserta-csv')
 @admin_required
 def export_csv():
     """Mengekspor daftar pendaftar/peserta ke file CSV dengan format UTF-8 (kompatibel Excel)"""
     status_filter = request.args.get('status') # 'pendaftar', 'peserta', or all
+    if not status_filter:
+        path_lower = request.path.lower()
+        if 'pendaftar' in path_lower:
+            status_filter = 'pendaftar'
+        elif 'hadir' in path_lower or 'peserta' in path_lower:
+            status_filter = 'peserta'
+
     ruangan_filter = request.args.get('ruangan')
     best_filter = request.args.get('best_presenter') in ['1', 'true', 'True']
     is_presented_filter = request.args.get('is_presented')

@@ -464,16 +464,16 @@
                         <div class="text-xs font-bold uppercase tracking-wider text-slate-400">Ekspor & Impor Data</div>
                         <p class="text-xs text-slate-300">Backup atau restore data presenter beserta judul & ruangan</p>
                         <div class="space-y-2 pt-1">
-                            <a id="exportCurrentBtn" href="{{ request.script_root }}/api/export-csv?status=pendaftar"
+                            <button type="button" id="exportCurrentBtn" onclick="triggerExportCurrent()"
                                 class="w-full py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition flex items-center justify-center gap-2">
                                 <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
                                 <span id="exportBtnLabel">Export CSV Pendaftar</span>
-                            </a>
-                            <a href="{{ request.script_root }}/api/export-csv"
+                            </button>
+                            <button type="button" onclick="triggerExportAll()"
                                 class="w-full py-2 px-3 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-medium transition flex items-center justify-center gap-2">
                                 <i data-lucide="download" class="w-3.5 h-3.5"></i>
                                 <span>Export Semua Data</span>
-                            </a>
+                            </button>
                             <button type="button" onclick="openImportModal()"
                                 class="w-full py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-sm">
                                 <i data-lucide="file-up" class="w-3.5 h-3.5"></i>
@@ -1675,8 +1675,7 @@
                 if (presentedFilterWrapper) presentedFilterWrapper.classList.add('hidden');
                 if (filterPresented) filterPresented.value = 'Semua';
 
-                exportCurrentBtn.href = `${window.BASE_URL}/api/export-csv?status=pendaftar`;
-                exportBtnLabel.textContent = 'Export CSV Pendaftar';
+                if (exportBtnLabel) exportBtnLabel.textContent = 'Export CSV Pendaftar';
             } else {
                 tabPesertaBtn.className = 'w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-left text-xs sm:text-sm font-bold transition-all bg-blue-50 text-blue-900 border border-blue-200 shadow-sm';
                 tabPendaftarBtn.className = 'w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-left text-xs sm:text-sm font-bold transition-all text-slate-700 hover:bg-slate-100';
@@ -1688,11 +1687,21 @@
                 if (bestFilterWrapper) bestFilterWrapper.classList.remove('hidden');
                 if (presentedFilterWrapper) presentedFilterWrapper.classList.remove('hidden');
 
-                exportCurrentBtn.href = `${window.BASE_URL}/api/export-csv?status=peserta`;
-                exportBtnLabel.textContent = 'Export CSV Presenter Hadir';
+                if (exportBtnLabel) exportBtnLabel.textContent = 'Export CSV Presenter Hadir';
             }
 
             loadParticipantsData();
+        }
+
+        function triggerExportCurrent() {
+            const baseUrl = window.BASE_URL || '';
+            const status = currentSubTab === 'pendaftar' ? 'pendaftar' : 'peserta';
+            window.location.href = `${baseUrl}/api/export-csv?status=${status}`;
+        }
+
+        function triggerExportAll() {
+            const baseUrl = window.BASE_URL || '';
+            window.location.href = `${baseUrl}/api/export-csv`;
         }
 
         async function initCameraOptions() {
